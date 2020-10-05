@@ -1,4 +1,4 @@
-# Work referred in this project
+# Work referred to by this project
 [Obey the Testing Goat](https://www.obeythetestinggoat.com/book/chapter_01.html#_obey_the_testing_goat_do_nothing_until_you_have_a_test)!
 Do Nothing Until You Have a Test.
 [Goat 10 videos](https://www.oreilly.com/library/view/test-driven-development/9781491919163/).

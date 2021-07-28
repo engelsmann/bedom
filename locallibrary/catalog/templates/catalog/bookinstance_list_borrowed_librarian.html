@@ -1,0 +1,26 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+    {% if perms.catalog.can_identify_borrower %}
+        <h1>Borrowed books</h1>
+
+        {% if bookinstance_list %}
+        <ul>
+          {% for bookinst in bookinstance_list %}
+          <li class="{% if bookinst.is_overdue %}text-danger{% endif %}">
+            <a href="{% url 'book-detail' bookinst.book.pk %}">{{bookinst.book.title}}</a> ({{ bookinst.due_back }})
+            <span class="text-muted">{{ bookinst.borrower }}</span>.
+            {% if perms.catalog.can_mark_returned %}
+              - <a href="{% url 'renew-book-librarian' bookinst.id %}">Renew</a> 
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+
+        {% else %}
+        <p>There are no books borrowed.</p>
+        {% endif %}
+    {% else %}
+        <p>You need permission to see borrowed books in this view.</p>
+    {% endif %}
+{% endblock %}

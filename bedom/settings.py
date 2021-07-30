@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Adding my PREPARE app:
+    'prepare.apps.PrepareConfig', # Object created by Django with STARTAPP PREPARE
 ]
 
 MIDDLEWARE = [

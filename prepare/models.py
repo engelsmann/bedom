@@ -1,9 +1,19 @@
+# File: models.py
+
 from django.db               import models
 from django.db.models.fields.related import ForeignKey
 from django.urls             import reverse
 from django.core.validators  import MaxValueValidator, MinLengthValidator, MinValueValidator
-from django.db.models.fields import AutoField, BooleanField, CharField, DateField, IntegerField, TextField
+from django.db.models.fields import AutoField, BooleanField, CharField, DateField, DateTimeField, IntegerField, TextField, URLField
 
+### Troubleshooting https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Models#re-run_the_database_migrations
+### After modifying models.py and (both in venv 'base' and venv 'bedom-venv') running 
+### "$ python -m manage runserver": "System check identified no issues (0 silenced)."
+### I get the unintended response to "python -m mananage makemigrations": "No changes detected".
+### SOLUTION: in ../bedom/settings.py add to list INSTALLED_APPS 
+### the AppConfig class "PrepareConfig" created by Django STARTAPP PREPARE in file ./apps.py
+### Another consequences is that "$ python -m manage runserver" starts to find a whole lot
+### of errors in my code, which I will correct before trying MAKEMIGRATIONS again...
 
 # Create your models here.
 
@@ -74,10 +84,18 @@ class Elev(models.Model):
     efternavn = models.CharField(max_length=50, help_text='Personens officielle efternavn(e) som i protokol')
     kaldenavn = models.CharField(max_length=15, help_text='Det navn, personen ønsker brugt i daglig tiltale')
     klasse = models.ForeignKey('Klasse', on_delete=models.RESTRICT, null=True)
-    unilogin = models.CharField(min_length=8, max_length=8, help_text='Personens officielle fornavn(e) som i protokol')
+    unilogin = models.CharField(
+        max_length=8, 
+        validators=[MinLengthValidator(8)],
+        help_text='Personens officielle fornavn(e) som i protokol'
+    )
     mail = models.EmailField(help_text='Mail, læreren kan bruge til kommunikation med eleven')
     # https://stackoverflow.com/q/19130942/888033
-    mobil = models.CharField(min_length=8, max_length=15, help_text='Mobiltelefonnummer, system og lærer kan bruge til kommunikation med eleven')
+    mobil = models.CharField(
+        max_length=15, 
+        validators=[MinLengthValidator(8)],
+        help_text='Mobiltelefonnummer, system og lærer kan bruge til kommunikation med eleven'
+    )
     note = models.TextField(max_length=200, help_text='Lærerens noter om eleven, elevens lokale eller historik. OBS der er mulighed andetsteds for løbende observationsnoter.')
 
     class Meta:
@@ -113,14 +131,12 @@ class FokusGruppe(models.Model):
         først når læreren udvælger hvor mange, der skal observeres i det pågældende Modul.
         Dato (og tid) gives af denne relation.
     """
-    modul = models.ManyToManyField('Modul', on_delete=models.RESTRICT, null=True)
+    modul = models.ManyToManyField('Modul')
     """
         Eleven i en instantiering (række) præsenteres i liste over Fokusgruppe-kandidater,
         hvis bedømt=False eller =Null. Sættes til =True, når observation registreres.
     """
     bedømt = models.BooleanField(null=True)
-    """Runde af observation, fra Elev.Klasse.fokus_runde (redundant)."""
-    runde = models.ForeignKey('Elev.Klasse.fokus_runde', on_delete=models.RESTRICT, null=True)
     """
         Tilfældig værdi mellem 0 og 1, der tildeles ved oprettelse.
         Sorteringsværdi (indenfor Elev.Klasse.fokus_runde). 
@@ -128,7 +144,7 @@ class FokusGruppe(models.Model):
     rand_rank = models.FloatField(validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])
 
     class Meta:
-        ordering = ['elev_fg_runde_id', 'elev.id']
+        ordering = ['elev_fg_runde_id', 'elev']
         verbose_name = 'fokusgruppe til adfærdsobservation'
         verbose_name_plural = 'fokusgrupper til adfærdsobservation'
 
@@ -142,15 +158,44 @@ class FokusGruppe(models.Model):
         """Streng, som repræsenterer Elev (på Admin siden etc.)."""
         return f"{self.elev.fornavn} {self.elev.efternavn} ({self.klasse.fokus_runde}, {self.klasse.kortnavn})"
 
+    @property # Getter method.
+    # Frit efter https://www.geeksforgeeks.org/python-property-decorator-property/
+    def runde(self):
+        """Runde af observation, fra Elev.Klasse.fokus_runde (redundant)."""
+        return self.elev.klasse.fokus_runde
+
 class Emne(models.Model):
     """Faglige emner, som danner rammen om forløb for de enkelte klasser"""
     id = AutoField(primary_key=True, verbose_name='Emne-løbenummer (automatisk)')
     titel = CharField(max_length=20, help_text='Betegnelse for emnet')
-    fag = CharField(choices=['Matematik', 'Informationsteknologi'], default='Matematik')
-    studieretning = CharField(choices=['stx','hf','htx','hhx','eux','eud','andet'], default='stx', help_text='Klassens studieretning')
+    fag = CharField(
+        max_length=3,
+        choices=[
+            ('mat', 'Matematik'), 
+            ('it',  'Informationsteknologi')
+        ], 
+        default='Matematik'
+    )
+    studieretning = CharField(
+        max_length=3,
+        choices=[
+            ('stx', 'STX'),
+            ('hf',  'HF'),
+            ('htx', 'HTX'),
+            ('hhx', 'HHX'),
+            ('eux', 'EUX'),
+            ('eud', 'EUD'),
+            ('etc', 'Andet')
+        ], 
+        default='stx', 
+        help_text='Klassens studieretning'
+    )
     faglige_mål = TextField(max_length=1000, help_text='Bekendtgørelsens og skolens faggruppes krav til emnet')
     note = TextField(max_length=1000, help_text='Lærerens krav til og ambitioner for emnet')
-    klassetrin = IntegerField(min_value=1, max_value=4, help_text='Årgang, emnet undervises på (siden holdets startår)')
+    klassetrin = IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(4)],
+        help_text='Årgang, emnet undervises på (siden holdets startår)',
+    )
     varighed = IntegerField(help_text='Forventet antal lektioner/moduler')
     class Meta:
         ordering = ['fag', 'studieretning', 'klassetrin', 'titel']
@@ -202,8 +247,8 @@ class Adfærd(models.Model):
     Scores kan alene registreres (not Null), hvis `tilstede`=True (observation ikke mulig af fraværende elever).
     """
     id = AutoField(primary_key=True,verbose_name='Løbenummer (automatisk) for adfærdsobservation')
-    modul        = ForeignKey('Modul',       on_delete=models.RESTRICT, null=True)
-    fokusgruppe  = ForeignKey('FokusGruppe', on_delete=models.RESTRICT, null=True)
+    modul        = ForeignKey('Modul',       on_delete=models.RESTRICT, null=False)
+    fokusgruppe  = ForeignKey('FokusGruppe', on_delete=models.RESTRICT, null=False)
     tilstede = BooleanField(default=True)
     spørg  = IntegerField(validators=[MinValueValidator(1),MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at søge hjælp på fagligt spørgsmål')
     hjælp  = IntegerField(validators=[MinValueValidator(1),MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at yde hjælp til faglig problemløsning')
@@ -212,7 +257,7 @@ class Adfærd(models.Model):
     reaktion = CharField(max_length=30, help_text='Elevens bemærkning')
 
     class Meta:
-        ordering = ['']
+        #ordering = ['']
         verbose_name='adfærdsobservation'
         verbose_name_plural='adfærdsobservationer'
 
@@ -221,3 +266,82 @@ class Adfærd(models.Model):
     def get_absolute_url(self):
         """Returnerer URL, der tilgår observationer af en bestemt Elev i et bestemt Modul."""
         return reverse('adfaerd-detalje-visning', args=[str(self.id)])
+
+
+class Video(models.Model):
+    """
+       Præsentation på video (eller i personligt fremmøde) af opgave stillet 
+       i forbindelse med et Forløb.
+       https://trello.com/c/ZReTY2UN
+    """
+    id = AutoField(primary_key=True,verbose_name='Løbenummer (automatisk) for videopræsentation')
+    forløb = ForeignKey('Forløb', on_delete=models.RESTRICT, null=False)
+    elev   = ForeignKey('Elev',   on_delete=models.RESTRICT, null=False)
+    """
+        Valideres til at ligge efter `forløb.påbegyndt` og før 3 måneder efter denne dato.
+    """
+    stillet =DateField(
+        help_text='Dato, hvor opgaven blev stillet til elev (eller hold)'
+    ) 
+    """Afleveringsfrist Valideres til at ligge efter `stillet` og højst 3 måneder efter denne dato."""
+    frist = DateTimeField(help_text='Dato og tid for seneste aftalte aflevering')
+    """
+        Gerne oprettelses-tidsstempel fra video-netside
+        Valideres til at ligge efter `frist` og højst 3 måneder efter `frist`.
+    """
+    indleveret = DateField(help_text='Dato og tid for faktisk aflevering') 
+    opgave = CharField(max_length=100, help_text='Opgavetekst for SOLO aktivitet')
+    #"""
+    #    Knytter eventuelt opgaven, og dermed præsentationen,
+    #    til en HookED On Thinking aktivitet. 
+    #    I bekræftende fald giver relationen et paradigmatisk - ikke opgave-konkret - 
+    #    SOLO-retteark til SOLO-niveau.
+    #"""
+    # solo_aktivitet ManyToManyField
+    url = URLField(help_text='Videoens placering (fx skjult på YouTube)')
+    egen_solo  = CharField(
+        max_length=3,
+        choices=[
+            ('pre', 'Præstrukturelt niveau'), 
+            ('uni', 'Unistrukturelt niveau'), 
+            ('mul', 'Multistrukturelt niveau'), 
+            ('rel', 'Relationelt niveau'), 
+            ('udv', 'Udvidet-abstrakt niveau')
+        ], 
+        null=True,
+        verbose_name="Elevens egen bedømmelse efter SOLO"
+    )
+    """Hvis feltet udfyldes, sker det EFTER elevens egen SOLO bedømmelse."""
+    lærer_solo = CharField(
+        max_length=3,
+        choices=[
+            ('pre', 'Præstrukturelt niveau'), 
+            ('uni', 'Unistrukturelt niveau'), 
+            ('mul', 'Multistrukturelt niveau'), 
+            ('rel', 'Relationelt niveau'), 
+            ('udv', 'Udvidet-abstrakt niveau')
+        ], 
+        null=True
+    )
+    """ i stedet for (eller som supplement til) SOLO-bedømmelse """
+    egen_bedømmelse  = CharField(
+        max_length=100, null=True,
+        verbose_name="Elevens egen bedømmelse i fri tekst"
+    )
+    """
+        I stedet for (eller som supplement til) SOLO-bedømmelse. 
+        Hvis feltet udfyldes, sker det efter elevens egen bedømmelse.
+    """
+    lærer_bedømmelse = CharField(
+        max_length=100, null=True
+    )
+    
+    class Meta:
+        ordering = ['forløb', 'frist', 'elev']
+
+    def __str__(self):
+        return self.__class__.__name__ + f" fra {self.elev} indleveret d. {self.indleveret}."
+
+    def get_absolute_url(self):
+        """Returnerer URL, der tilgår en bestemt Video."""
+        return reverse('videopraesentation-detalje-visning', args=[str(self.id)])

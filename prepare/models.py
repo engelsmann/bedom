@@ -6,6 +6,8 @@ from django.urls             import reverse
 from django.core.validators  import MaxValueValidator, MinLengthValidator, MinValueValidator
 from django.db.models.fields import AutoField, BooleanField, CharField, DateField, DateTimeField, IntegerField, TextField, URLField
 
+import uuid
+
 ### Troubleshooting https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Models#re-run_the_database_migrations
 ### After modifying models.py and (both in venv 'base' and venv 'bedom-venv') running 
 ### "$ python -m manage runserver": "System check identified no issues (0 silenced)."
@@ -27,6 +29,7 @@ class Skole(models.Model):
     # Metadata
     class Meta:
         ordering = ['navn']
+        verbose_name_plural = 'skoler'
 
     # Methods
     def get_absolute_url(self):
@@ -79,10 +82,19 @@ class Elev(models.Model):
     """
 
     # Fields
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField( # https://stackoverflow.com/a/34264443/888033
+        primary_key=True, 
+        default=uuid.uuid4, 
+        editable=False
+    )
     fornavn = models.CharField(max_length=50, help_text='Personens officielle fornavn(e) som i protokol')
     efternavn = models.CharField(max_length=50, help_text='Personens officielle efternavn(e) som i protokol')
-    kaldenavn = models.CharField(max_length=15, help_text='Det navn, personen ønsker brugt i daglig tiltale')
+    kaldenavn = models.CharField(
+        max_length=15, 
+        null=True,
+        blank=True,
+        help_text='Det navn, personen ønsker brugt i daglig tiltale'
+    )
     klasse = models.ForeignKey('Klasse', on_delete=models.RESTRICT, null=True)
     unilogin = models.CharField(
         max_length=8, 
@@ -96,7 +108,12 @@ class Elev(models.Model):
         validators=[MinLengthValidator(8)],
         help_text='Mobiltelefonnummer, system og lærer kan bruge til kommunikation med eleven'
     )
-    note = models.TextField(max_length=200, help_text='Lærerens noter om eleven, elevens lokale eller historik. OBS der er mulighed andetsteds for løbende observationsnoter.')
+    note = models.TextField(
+        max_length=200, 
+        null=True,
+        blank=True,
+        help_text='Lærerens noter om eleven, elevens lokale eller historik. OBS der er mulighed andetsteds for løbende observationsnoter.'
+    )
 
     class Meta:
         ordering = ['klasse', 'fornavn', 'efternavn']
@@ -217,6 +234,7 @@ class Forløb(models.Model):
     kommentar = TextField(max_length=500,help_text='Præsentation til holdets elever af det konkrete forløb i klassen')
     class Meta:
         ordering = ['klasse', 'emne']
+        verbose_name_plural = 'forløb'
     def __str__(self):
         return f"{self.klasse.kortnavn}: fra {self.påbegyndt} -- {self.emne}"
     def get_absolute_url(self):

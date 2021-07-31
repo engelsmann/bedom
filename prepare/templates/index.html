@@ -1,0 +1,21 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Forberedelse og observation</h1>
+  <p>
+    Velkommen til prepare-applikationen,   
+    udarbejdet over skabelon fra <em>Mozilla Developer Network</em>!
+  </p>
+  <h2>Dynamisk indhold</h2>
+  <p>Vi har registreret:</p>
+  <ul>
+    <li><strong>Skoler:</strong> {{ antal_skoler }}</li>
+    <li><strong>Klasser:</strong> {{ antal_klasser }}</li>
+    <li><strong>Emner:</strong> {{ antal_emner }}</li>
+    <li><strong>Forløb:</strong> {{ antal_forloeb }}</li>
+    <li><strong>Elever:</strong> {{ antal_elever }}</li>
+    <li><strong>Moduler:</strong> {{ antal_moduler }}</li>
+    <li><strong>Fokusgruppe-rækker:</strong> {{ antal_i_fokusgrupper }} (klar til at blive observeret).</li>
+    <li><strong>Observationer:</strong> {{ antal_observationer }}</li>
+  </ul>
+{% endblock %}

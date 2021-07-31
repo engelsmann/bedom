@@ -1,0 +1,16 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <h1>Fokusgrupper</h1>
+  {% if fokusgruppe_liste %}
+  <ul>
+    {% for fg in fokusgruppe_liste %}
+      <li>
+        <a href="{{ fg.get_absolute_url }}">{{ fg.title }}</a> ({{fg.author}})
+      </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p>Ingen FG registreret.</p>
+  {% endif %} 
+{% endblock %}

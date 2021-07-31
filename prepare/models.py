@@ -1,23 +1,36 @@
 # File: models.py
 
-from django.db               import models
+from django.db                       import models
 from django.db.models.fields.related import ForeignKey
-from django.urls             import reverse
-from django.core.validators  import MaxValueValidator, MinLengthValidator, MinValueValidator
-from django.db.models.fields import AutoField, BooleanField, CharField, DateField, DateTimeField, IntegerField, TextField, URLField
+from django.db.models.fields         import AutoField, BooleanField, CharField, DateField, DateTimeField, IntegerField, TextField, URLField
+
+# For use in Fokusgruppe.rand_rank
+from django.db.models.functions      import Random
+
+from django.urls                     import reverse
+
+# from datetime import datetime # https://stackoverflow.com/a/20106079/888033
+#from django.utils import timezone
+#import pytz
+
+from django.core.validators          import MaxValueValidator, MinLengthValidator, MinValueValidator
 
 import uuid
 
-### Troubleshooting https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Models#re-run_the_database_migrations
+### June 30, 2021: Troubleshooting
+### https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Models#re-run_the_database_migrations
 ### After modifying models.py and (both in venv 'base' and venv 'bedom-venv') running 
 ### "$ python -m manage runserver": "System check identified no issues (0 silenced)."
 ### I get the unintended response to "python -m mananage makemigrations": "No changes detected".
-### SOLUTION: in ../bedom/settings.py add to list INSTALLED_APPS 
-### the AppConfig class "PrepareConfig" created by Django STARTAPP PREPARE in file ./apps.py
+###
+### SOLUTION: in ../bedom/settings.py add reference to list INSTALLED_APPS:
+### the AppConfig class "PrepareConfig" created by Django (PYTHON -M MANAGE STARTAPP PREPARE)
+### in file ./apps.py of the PREPARE Django application folder.
 ### Another consequences is that "$ python -m manage runserver" starts to find a whole lot
 ### of errors in my code, which I will correct before trying MAKEMIGRATIONS again...
-
-# Create your models here.
+### Correcting errors and maneuvering through warnings, I arrive at a point where I can
+### MAKEMIGRATIONS with success and, subsequently, access the Model classes
+### through the ADMIN subpages.
 
 class Skole(models.Model):
     """Samle-struktur (klasse) for klasser. En lærer vil være tilknyttet (mindst 1) skole."""
@@ -25,6 +38,18 @@ class Skole(models.Model):
     # Fields
     navn = models.CharField(max_length=100, help_text='Skolens officielle navn')
     kortnavn = models.CharField(max_length=20, help_text='Skolens korte navn')
+    oprettet = models.DateTimeField(
+        # auto_now_add=False VISER feltet i http://127.1:8000/admin/prepare/skole/
+        #
+        #default=datetime.now() #  
+        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+    )
+    opdateret = models.DateTimeField( # NB: Dato opdateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
+        # auto_now=True SKJULER feltet i http://127.1:8000/admin/prepare/skole/, =False VISER feltet.
+        #
+        #default=datetime.now()#,
+        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+    )
 
     # Metadata
     class Meta:
@@ -51,6 +76,14 @@ class Klasse(models.Model):
     # Fields
     navn = models.CharField(max_length=100, help_text='Holdets administrative navn')
     kortnavn = models.CharField(max_length=20, help_text='Holdets  korte navn')
+    oprettet = models.DateTimeField(
+        #default=datetime.now() #  
+        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+    )
+    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
+        #default=datetime.now(), #
+        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+    )
     skole = models.ForeignKey('Skole', on_delete=models.RESTRICT, null=True)
     startår = models.IntegerField(validators=[ MinValueValidator(1950), MaxValueValidator(2050)], help_text='Firecifret årstal for holdstart')
     """Fortløbende nummerering af den runde/omgang af samplinger, https://trello.com/c/mDSvj2t2 , klassens elever sættes sammen i, i fokusgrupper """
@@ -87,8 +120,24 @@ class Elev(models.Model):
         default=uuid.uuid4, 
         editable=False
     )
-    fornavn = models.CharField(max_length=50, help_text='Personens officielle fornavn(e) som i protokol')
-    efternavn = models.CharField(max_length=50, help_text='Personens officielle efternavn(e) som i protokol')
+    oprettet = models.DateTimeField(
+        #default=timezone.now() #
+        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+    )
+    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
+        #default=timezone.now(), #
+        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+    )
+    fornavn = models.CharField(
+        max_length=50, 
+        validators=[MinLengthValidator(2)],
+        help_text='Personens officielle fornavn(e) som i protokol'
+    )
+    efternavn = models.CharField(
+        max_length=50, 
+        validators=[MinLengthValidator(2)],
+        help_text='Personens officielle efternavn(e) som i protokol'
+    )
     kaldenavn = models.CharField(
         max_length=15, 
         null=True,
@@ -148,8 +197,17 @@ class FokusGruppe(models.Model):
         først når læreren udvælger hvor mange, der skal observeres i det pågældende Modul.
         Dato (og tid) gives af denne relation.
     """
+    oprettet = models.DateTimeField(
+        #default=timezone.now() 
+        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+    )
+    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
+        #default=timezone.now(), 
+        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+    )
     modul = models.ManyToManyField('Modul')
     """
+        Modul giver Forløb og knytter Elev til modulets fokusgruppe, når tildelt.
         Eleven i en instantiering (række) præsenteres i liste over Fokusgruppe-kandidater,
         hvis bedømt=False eller =Null. Sættes til =True, når observation registreres.
     """
@@ -158,7 +216,14 @@ class FokusGruppe(models.Model):
         Tilfældig værdi mellem 0 og 1, der tildeles ved oprettelse.
         Sorteringsværdi (indenfor Elev.Klasse.fokus_runde). 
     """
-    rand_rank = models.FloatField(validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])
+    rand_rank = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        # https://docs.djangoproject.com/en/3.2/ref/models/database-functions/#random
+        # maybe also: https://realpython.com/python-random/
+        default=Random(), # Introduced in Django 3.2
+        editable=False,
+        null=False
+    )
 
     class Meta:
         ordering = ['elev_fg_runde_id', 'elev']
@@ -174,18 +239,36 @@ class FokusGruppe(models.Model):
     def __str__(self):
         """Streng, som repræsenterer Elev (på Admin siden etc.)."""
         return f"{self.elev.fornavn} {self.elev.efternavn} ({self.klasse.fokus_runde}, {self.klasse.kortnavn})"
+    
+    def generer_blok(self):
+        """
+            Danner 'blok' med en hel klasses aktive, tilmeldte elever.
+            Feltet `rand_rank` bestemmer (en ny, tilfældig) rækkefølge for sampling/observation.
+            Feltet `klasse.runde` sættes i Klasse og hentes her som @property.
+            Felterne `modul` og `bedømt` sættes ikke (Null) ved generering af blokken. 
+        """
+        pass
 
-    @property # Getter method.
+    @property # Getter method - avoiding reduncant data entry
     # Frit efter https://www.geeksforgeeks.org/python-property-decorator-property/
     def runde(self):
         """Runde af observation, fra Elev.Klasse.fokus_runde (redundant)."""
         return self.elev.klasse.fokus_runde
 
+
 class Emne(models.Model):
     """Faglige emner, som danner rammen om forløb for de enkelte klasser"""
     id = AutoField(primary_key=True, verbose_name='Emne-løbenummer (automatisk)')
     titel = CharField(max_length=20, help_text='Betegnelse for emnet')
-    fag = CharField(
+    oprettet = models.DateTimeField(
+        #default=timezone.now() 
+        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+    )
+    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
+        #default=timezone.now(), #
+        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+    )
+    fag = CharField( # Eller ForeignKey til (ikke oprettet) Model: Fag.
         max_length=3,
         choices=[
             ('mat', 'Matematik'), 
@@ -208,35 +291,60 @@ class Emne(models.Model):
         help_text='Klassens studieretning'
     )
     faglige_mål = TextField(max_length=1000, help_text='Bekendtgørelsens og skolens faggruppes krav til emnet')
-    note = TextField(max_length=1000, help_text='Lærerens krav til og ambitioner for emnet')
+    note = TextField(
+        max_length=1000, 
+        null=True,
+        blank=True,
+        help_text='Lærerens krav til og ambitioner for emnet'
+    )
     klassetrin = IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(4)],
         help_text='Årgang, emnet undervises på (siden holdets startår)',
     )
     varighed = IntegerField(help_text='Forventet antal lektioner/moduler')
+
     class Meta:
         ordering = ['fag', 'studieretning', 'klassetrin', 'titel']
         verbose_name_plural = 'emner'
+    
     def __str__(self):
         return f"{self.fag}-{self.studieretning}/{self.klassetrin}: {self.titel}. "
+
     def get_absolute_url(self):
         """Returnerer URL, der tilgår en bestemt instantiering af Emne."""
         return reverse('emne-detalje-visning', args=[str(self.id)])
+
 
 class Forløb(models.Model):
     """Forløb er et Emne, der gennemgås i en Klasse fra et bestemt tidspunkt (`påbegyndt`) og som har en planlagt `varighed`."""
     id = AutoField(primary_key=True, verbose_name='Forløbs-løbenummer (automatisk)')
     emne   = ForeignKey('Emne',   on_delete=models.RESTRICT, null=True)
     klasse = ForeignKey('Klasse', on_delete=models.RESTRICT, null=True)
+    oprettet = models.DateTimeField(
+        #default=timezone.now() 
+        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+    )
+    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
+        #default=timezone.now(), 
+        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+    )
     titel = CharField(max_length=20, help_text='Overskrift for forløbet')
     påbegyndt = DateField(help_text='Dato for planlagt start af forløbet')
     varighed = IntegerField(help_text='Forventet antal lektioner/moduler')
-    kommentar = TextField(max_length=500,help_text='Præsentation til holdets elever af det konkrete forløb i klassen')
+    kommentar = TextField(
+        max_length=500, 
+        null=True,
+        blank=True,
+        help_text='Præsentation til holdets elever af det konkrete forløb i klassen'
+    )
+
     class Meta:
         ordering = ['klasse', 'emne']
         verbose_name_plural = 'forløb'
+
     def __str__(self):
         return f"{self.klasse.kortnavn}: fra {self.påbegyndt} -- {self.emne}"
+    
     def get_absolute_url(self):
         """Returnerer URL, der tilgår et bestemt Forløb."""
         return reverse('forloeb-detalje-visning', args=[str(self.id)])
@@ -248,15 +356,27 @@ class Modul(models.Model):
     """
     id = AutoField(primary_key=True,verbose_name='Modul-løbenummer (automatisk)')
     forløb = ForeignKey('Forløb', on_delete=models.RESTRICT, null=True)
+    oprettet = models.DateTimeField(
+        #default=timezone.now() 
+        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+    )
+    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
+        #default=timezone.now(), 
+        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+    )
     afholdt = DateField(help_text='Dato for planlagt start af forløbet')
+
     class Meta:
         ordering = ['afholdt', 'id']
         verbose_name_plural='moduler'
+
     def __str__(self):
         return f"Modul {self.id} '{self.forløb.titel}', {self.afholdt} ({self.forløb.klasse})."
+
     def get_absolute_url(self):
         """Returnerer URL, der tilgår et bestemt Modul."""
         return reverse('modul-detalje-visning', args=[str(self.id)])
+
 
 class Adfærd(models.Model):
     """
@@ -267,6 +387,14 @@ class Adfærd(models.Model):
     id = AutoField(primary_key=True,verbose_name='Løbenummer (automatisk) for adfærdsobservation')
     modul        = ForeignKey('Modul',       on_delete=models.RESTRICT, null=False)
     fokusgruppe  = ForeignKey('FokusGruppe', on_delete=models.RESTRICT, null=False)
+    oprettet = models.DateTimeField(
+        #default=timezone.now() 
+        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+    )
+    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
+        #default=timezone.now(), 
+        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+    )
     tilstede = BooleanField(default=True)
     spørg  = IntegerField(validators=[MinValueValidator(1),MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at søge hjælp på fagligt spørgsmål')
     hjælp  = IntegerField(validators=[MinValueValidator(1),MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at yde hjælp til faglig problemløsning')
@@ -281,6 +409,7 @@ class Adfærd(models.Model):
 
     def __str__(self):
         return f"Adfærd #{self.id} af {self.fokusgruppe.elev} observeret d. {self.modul.afholdt}:\n{self.spørg}/{self.hjælp}/{self.faglig}"
+
     def get_absolute_url(self):
         """Returnerer URL, der tilgår observationer af en bestemt Elev i et bestemt Modul."""
         return reverse('adfaerd-detalje-visning', args=[str(self.id)])
@@ -295,8 +424,17 @@ class Video(models.Model):
     id = AutoField(primary_key=True,verbose_name='Løbenummer (automatisk) for videopræsentation')
     forløb = ForeignKey('Forløb', on_delete=models.RESTRICT, null=False)
     elev   = ForeignKey('Elev',   on_delete=models.RESTRICT, null=False)
+    oprettet = models.DateTimeField(
+        #default=timezone.now() 
+        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+    )
+    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
+        #default=timezone.now(), 
+        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+    )
     """
         Valideres til at ligge efter `forløb.påbegyndt` og før 3 måneder efter denne dato.
+        Redundant, når `oprettet` haves?
     """
     stillet =DateField(
         help_text='Dato, hvor opgaven blev stillet til elev (eller hold)'

@@ -189,7 +189,8 @@ class FokusGruppe(models.Model):
     """
 
     # Fields
-    elev_fg_runde_id = AutoField(primary_key=True, verbose_name='Fokusgruppens Elev-løbenummer')
+    #elev_fg_runde_id = AutoField(primary_key=True, verbose_name='Fokusgruppens Elev-løbenummer')
+    id = AutoField(primary_key=True, verbose_name='Fokusgruppens medlems-modul-løbenummer')
     """Klasse (og dermed `Elev.Klasse.fokus_runde`), samt Elev gives af denne relation."""
     elev = models.ForeignKey('Elev', on_delete=models.RESTRICT, null=True)
     """
@@ -226,7 +227,7 @@ class FokusGruppe(models.Model):
     )
 
     class Meta:
-        ordering = ['elev_fg_runde_id', 'elev']
+        ordering = ['id', 'elev']
         verbose_name = 'fokusgruppe til adfærdsobservation'
         verbose_name_plural = 'fokusgrupper til adfærdsobservation'
 
@@ -234,26 +235,33 @@ class FokusGruppe(models.Model):
     """Giver 'baglæns' URL-kodning mening for denne Model?"""
     def get_absolute_url(self):
         """Returnerer URL, der tilgår en bestemt instantiering af klassen Klasse (et bestemt hold)."""
-        return reverse('fokusgruppe-detalje-visning', args=[str(self.id)])
+        return reverse('fokusgruppe_detalje_visning', args=[str(self.id)])
 
     def __str__(self):
         """Streng, som repræsenterer Elev (på Admin siden etc.)."""
         return f"{self.elev.fornavn} {self.elev.efternavn} ({self.klasse.fokus_runde}, {self.klasse.kortnavn})"
     
-    def generer_blok(self):
+    def generer_blok(self,modul):
         """
             Danner 'blok' med en hel klasses aktive, tilmeldte elever.
             Feltet `rand_rank` bestemmer (en ny, tilfældig) rækkefølge for sampling/observation.
-            Feltet `klasse.runde` sættes i Klasse og hentes her som @property.
+            Feltet `klasse.fokus_runde` hentes fra Klasse som @property (se nedenfor).
             Felterne `modul` og `bedømt` sættes ikke (Null) ved generering af blokken. 
         """
-        pass
+        if( modul.forløb.klasse == self.elev.klasse):
+            print("\nKlasse = Klasse. OK!")
+        else:
+            print("\nKlasse != Klasse. PROBLEM!")
+
 
     @property # Getter method - avoiding reduncant data entry
     # Frit efter https://www.geeksforgeeks.org/python-property-decorator-property/
     def runde(self):
         """Runde af observation, fra Elev.Klasse.fokus_runde (redundant)."""
         return self.elev.klasse.fokus_runde
+    @property
+    def klasse(self):
+        return self.elev.klasse
 
 
 class Emne(models.Model):

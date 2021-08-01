@@ -1,7 +1,7 @@
 # File: models.py
 
 from django.db                       import models
-from django.db.models.fields.related import ForeignKey
+from django.db.models.fields.related import ForeignKey, ManyToManyField
 from django.db.models.fields         import AutoField, BooleanField, CharField, DateField, DateTimeField, IntegerField, TextField, URLField
 
 # For use in Fokusgruppe.rand_rank
@@ -39,10 +39,10 @@ class Skole(models.Model):
     navn = models.CharField(max_length=100, help_text='Skolens officielle navn')
     kortnavn = models.CharField(max_length=20, help_text='Skolens korte navn')
     oprettet = models.DateTimeField(
-        # auto_now_add=False VISER feltet i http://127.1:8000/admin/prepare/skole/
+        # auto_now_add=True VISER feltet i http://127.1:8000/admin/prepare/skole/
         #
         #default=datetime.now() #  
-        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+        auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
     )
     opdateret = models.DateTimeField( # NB: Dato opdateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
         # auto_now=True SKJULER feltet i http://127.1:8000/admin/prepare/skole/, =False VISER feltet.
@@ -78,19 +78,48 @@ class Klasse(models.Model):
     kortnavn = models.CharField(max_length=20, help_text='Holdets  korte navn')
     oprettet = models.DateTimeField(
         #default=datetime.now() #  
-        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+        auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
     )
     opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
         #default=datetime.now(), #
-        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
     )
     skole = models.ForeignKey('Skole', on_delete=models.RESTRICT, null=True)
-    startår = models.IntegerField(validators=[ MinValueValidator(1950), MaxValueValidator(2050)], help_text='Firecifret årstal for holdstart')
+    startår = models.IntegerField(
+        validators=[ MinValueValidator(1950), MaxValueValidator(2050)],
+        help_text='Firecifret årstal for holdstart'
+    )
+    studieretning = CharField(
+        max_length=3,
+        choices=[
+            ('stx', 'STX'),
+            ('hf',  'HF'),
+            ('htx', 'HTX'),
+            ('hhx', 'HHX'),
+            ('eux', 'EUX'),
+            ('eud', 'EUD'),
+            ('etc', 'Andet')
+        ], 
+        default='stx', 
+        help_text='Klassens studieretning'
+    )
     """Fortløbende nummerering af den runde/omgang af samplinger, https://trello.com/c/mDSvj2t2 , klassens elever sættes sammen i, i fokusgrupper """
-    fokus_runde = models.IntegerField(validators=[ MinValueValidator(0), MaxValueValidator(999)], help_text='(automatisk) løbenummer for samplingsrunde til fokusgruppe')
+    fokus_runde = models.IntegerField(
+        validators=[ MinValueValidator(1), MaxValueValidator(999)],
+        help_text='(automatisk) løbenummer for samplingsrunde til fokusgruppe'
+    )
     """Antal medlemmer i fokusgruppe"""
-    fokus_antal = models.IntegerField(validators=[ MinValueValidator(0), MaxValueValidator(35)], help_text='Standardstørrelse af klassens fokusgruppe')
-    note = models.TextField(max_length=200, help_text='Lærerens generelle noter om holdet, dets lokale eller historik')
+    fokus_antal = models.IntegerField(
+        validators=[ MinValueValidator(1), MaxValueValidator(35)], 
+        default=5,
+        help_text='Standardstørrelse af klassens fokusgruppe'
+    )
+    note = models.TextField(
+        max_length=200, 
+        blank=True,
+        null=True,
+        help_text='Lærerens generelle noter om holdet, dets lokale eller historik'
+    )
 
     # Metadata
     class Meta:
@@ -122,11 +151,11 @@ class Elev(models.Model):
     )
     oprettet = models.DateTimeField(
         #default=timezone.now() #
-        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+        auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
     )
     opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
         #default=timezone.now(), #
-        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
     )
     fornavn = models.CharField(
         max_length=50, 
@@ -172,7 +201,7 @@ class Elev(models.Model):
     # Methods
     def get_absolute_url(self):
         """Returnerer URL, der tilgår en bestemt instantiering af klassen Klasse (et bestemt hold)."""
-        return reverse('elev-detalje-visning', args=[str(self.id)])
+        return reverse('elev_detaljer', args=[str(self.id)])
 
     def __str__(self):
         """Streng, som repræsenterer Elev (på Admin siden etc.)."""
@@ -186,11 +215,13 @@ class FokusGruppe(models.Model):
     Rækkefølgen af Elever i Klassen skifter for hver `klasse.fokus_runde`, og bestemmes af `self.rand_rank`.
     Læreren tildeler sig til hvert Modul (hver "time") et antal elever fra klassen. Læreren giver hver elev i denne gruppe Adfærdsobservation.
     Reificerer relation mellem Elev og Modul.
+
+    Sammenlagt FokusGruppe og Adfærd 1/8 2021
     """
 
     # Fields
     #elev_fg_runde_id = AutoField(primary_key=True, verbose_name='Fokusgruppens Elev-løbenummer')
-    id = AutoField(primary_key=True, verbose_name='Fokusgruppens medlems-modul-løbenummer')
+    id = AutoField(primary_key=True, verbose_name='Fokusgruppe-kandidatens elev+modul-løbenummer')
     """Klasse (og dermed `Elev.Klasse.fokus_runde`), samt Elev gives af denne relation."""
     elev = models.ForeignKey('Elev', on_delete=models.RESTRICT, null=True)
     """
@@ -200,18 +231,19 @@ class FokusGruppe(models.Model):
     """
     oprettet = models.DateTimeField(
         #default=timezone.now() 
-        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+        auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
     )
     opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
         #default=timezone.now(), 
-        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
     )
-    modul = models.ManyToManyField('Modul')
     """
         Modul giver Forløb og knytter Elev til modulets fokusgruppe, når tildelt.
         Eleven i en instantiering (række) præsenteres i liste over Fokusgruppe-kandidater,
         hvis bedømt=False eller =Null. Sættes til =True, når observation registreres.
     """
+    modul = models.ManyToManyField('Modul')
+    tilstede = BooleanField(default=True)
     bedømt = models.BooleanField(null=True)
     """
         Tilfældig værdi mellem 0 og 1, der tildeles ved oprettelse.
@@ -225,12 +257,27 @@ class FokusGruppe(models.Model):
         editable=False,
         null=False
     )
+    """
+    De to sociale performance indicators er intenderet til at stimulere/måle elevernes 'Decency Quotient'. 
+    Den faglige er til at stimulere/måle 'Intelligenskvitient'.
+    Scores kan alene registreres (not Null), hvis `tilstede`=True (observation ikke mulig af fraværende elever).
+    """
+    spørg  = IntegerField(validators=[MinValueValidator(1), MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at søge hjælp på fagligt spørgsmål')
+    hjælp  = IntegerField(validators=[MinValueValidator(1), MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at yde hjælp til faglig problemløsning')
+    faglig = IntegerField(validators=[MinValueValidator(1), MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at bidrage til en faglig samtale')
+    stikord  = CharField(max_length=30, null=True, help_text='Lærerens observationer i ord')
+    reaktion = CharField(max_length=30, null=True, help_text='Elevens bemærkning')
 
     class Meta:
         ordering = ['id', 'elev']
         verbose_name = 'fokusgruppe til adfærdsobservation'
         verbose_name_plural = 'fokusgrupper til adfærdsobservation'
+#    class Meta:
+#        #ordering = ['']
+#        verbose_name='adfærdsobservation'
+#        verbose_name_plural='adfærdsobservationer'
 
+ 
     # Methods
     """Giver 'baglæns' URL-kodning mening for denne Model?"""
     def get_absolute_url(self):
@@ -249,9 +296,11 @@ class FokusGruppe(models.Model):
             Felterne `modul` og `bedømt` sættes ikke (Null) ved generering af blokken. 
         """
         if( modul.forløb.klasse == self.elev.klasse):
+            self.modul = modul
             print("\nKlasse = Klasse. OK!")
         else:
             print("\nKlasse != Klasse. PROBLEM!")
+
 
 
     @property # Getter method - avoiding reduncant data entry
@@ -270,11 +319,11 @@ class Emne(models.Model):
     titel = CharField(max_length=20, help_text='Betegnelse for emnet')
     oprettet = models.DateTimeField(
         #default=timezone.now() 
-        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+        auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
     )
     opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
         #default=timezone.now(), #
-        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
     )
     fag = CharField( # Eller ForeignKey til (ikke oprettet) Model: Fag.
         max_length=3,
@@ -330,11 +379,11 @@ class Forløb(models.Model):
     klasse = ForeignKey('Klasse', on_delete=models.RESTRICT, null=True)
     oprettet = models.DateTimeField(
         #default=timezone.now() 
-        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+        auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
     )
     opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
         #default=timezone.now(), 
-        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
     )
     titel = CharField(max_length=20, help_text='Overskrift for forløbet')
     påbegyndt = DateField(help_text='Dato for planlagt start af forløbet')
@@ -366,11 +415,11 @@ class Modul(models.Model):
     forløb = ForeignKey('Forløb', on_delete=models.RESTRICT, null=True)
     oprettet = models.DateTimeField(
         #default=timezone.now() 
-        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+        auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
     )
     opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
         #default=timezone.now(), 
-        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
     )
     afholdt = DateField(help_text='Dato for planlagt start af forløbet')
 
@@ -387,41 +436,24 @@ class Modul(models.Model):
 
 
 class Adfærd(models.Model):
-    """
-    De to sociale performance indicators er intenderet til at stimulere/måle elevernes 'Decency Quotient'. 
-    Den faglige er til at stimulere/måle 'Intelligenskvitient'.
-    Scores kan alene registreres (not Null), hvis `tilstede`=True (observation ikke mulig af fraværende elever).
-    """
-    id = AutoField(primary_key=True,verbose_name='Løbenummer (automatisk) for adfærdsobservation')
-    modul        = ForeignKey('Modul',       on_delete=models.RESTRICT, null=False)
-    fokusgruppe  = ForeignKey('FokusGruppe', on_delete=models.RESTRICT, null=False)
-    oprettet = models.DateTimeField(
+#    id = AutoField(primary_key=True,verbose_name='Løbenummer (automatisk) for adfærdsobservation')
+#    fokusgruppe  = ForeignKey('FokusGruppe', on_delete=models.RESTRICT, null=False)
+#    oprettet = models.DateTimeField(
         #default=timezone.now() 
-        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
-    )
-    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
+#        auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+#    )
+#    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
         #default=timezone.now(), 
-        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
-    )
-    tilstede = BooleanField(default=True)
-    spørg  = IntegerField(validators=[MinValueValidator(1),MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at søge hjælp på fagligt spørgsmål')
-    hjælp  = IntegerField(validators=[MinValueValidator(1),MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at yde hjælp til faglig problemløsning')
-    faglig = IntegerField(validators=[MinValueValidator(1),MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at bidrage til en faglig samtale')
-    stikord  = CharField(max_length=30, help_text='Lærerens observationer i ord')
-    reaktion = CharField(max_length=30, help_text='Elevens bemærkning')
+#        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+#    )
 
-    class Meta:
-        #ordering = ['']
-        verbose_name='adfærdsobservation'
-        verbose_name_plural='adfærdsobservationer'
-
-    def __str__(self):
-        return f"Adfærd #{self.id} af {self.fokusgruppe.elev} observeret d. {self.modul.afholdt}:\n{self.spørg}/{self.hjælp}/{self.faglig}"
-
-    def get_absolute_url(self):
-        """Returnerer URL, der tilgår observationer af en bestemt Elev i et bestemt Modul."""
-        return reverse('adfaerd-detalje-visning', args=[str(self.id)])
-
+#    def __str__(self):
+#        return f"Adfærd #{self.id} af {self.fokusgruppe.elev} observeret d. {self.modul.afholdt}:\n{self.spørg}/{self.hjælp}/{self.faglig}"
+#
+#    def get_absolute_url(self):
+#        """Returnerer URL, der tilgår observationer af en bestemt Elev i et bestemt Modul."""
+#        return reverse('adfaerd-detalje-visning', args=[str(self.id)])
+    pass
 
 class Video(models.Model):
     """
@@ -434,11 +466,11 @@ class Video(models.Model):
     elev   = ForeignKey('Elev',   on_delete=models.RESTRICT, null=False)
     oprettet = models.DateTimeField(
         #default=timezone.now() 
-        auto_now_add=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
+        auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
     )
     opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
         #default=timezone.now(), 
-        auto_now=False, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
     )
     """
         Valideres til at ligge efter `forløb.påbegyndt` og før 3 måneder efter denne dato.

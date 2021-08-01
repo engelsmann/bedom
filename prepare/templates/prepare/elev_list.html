@@ -1,0 +1,21 @@
+{% extends "base_generic.html" %}{# 
+    Elev list view minimally implemented, using all possible defaults.
+    https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views#note
+    Default template name for views.ElevListView: elev_list.html
+#}
+
+{% block content %}
+  <h1>Elever</h1>
+  {% if elev_list %}
+  <ul>
+    {% for elev in elev_list %}
+      <li>
+        <a href="{{ elev.get_absolute_url }}">{{ elev.fornavn }} {{elev.efternavn}}</a>
+      </li>
+    {% endfor %}
+  </ul>
+  <p>Tilføj filter for klasse.</p>
+  {% else %}
+    <p>Ingen elever registreret.</p>
+  {% endif %} 
+{% endblock %}

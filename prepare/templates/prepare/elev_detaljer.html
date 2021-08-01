@@ -1,0 +1,30 @@
+{% extends "base_generic.html" %}
+
+{% block title %}
+    {% if elev_stamdata.kaldenavn %}{{ elev_stamdata.kaldenavn }}{% else %}{{ elev_stamdata.fornavn }} {{ elev_stamdata.efternavn }}{% endif %}
+{% endblock %}
+
+{% block content %}
+  <h1>Elev: {% if elev_stamdata.kaldenavn %}{{ elev_stamdata.kaldenavn }}{% else %}{{ elev_stamdata.fornavn }} {{ elev_stamdata.efternavn }}{% endif %}</h1>
+  <table>
+    <tr>
+        <td><strong>Klasse:</strong> {{ elev_stamdata.klasse.kortnavn }}. </td>
+        <td><strong>Studieretning:</strong> {{ elev_stamdata.klasse.studieretning }}.</td>
+    </tr>
+  </table>
+  <div style="margin-left:20px;margin-top:20px">
+    <h4>Observationer</h4>
+    {% if elev_stamdata.adfærd_set_all %}
+    {% for obs in elev_stamdata.adfærd_set.all %}
+      <hr>
+*      <p class="{% if not obs.bedømt and not obs.fremmødt %}text-warning{% elif obs.fremmødt %}text-success{% else %}text-danger{% endif %}">
+        {{ obs.get_bedømt }}
+      </p>
+*      <p><strong>Imprint:</strong> {{ obs.imprint }}</p>
+*      <p class="text-muted"><strong>Id:</strong> {{ obs.id }}</p>
+    {% endfor %}
+    {% else %}
+        <p>Ingen observationer.</p>
+    {% endif %}
+  </div>
+{% endblock %}

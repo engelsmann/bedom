@@ -6,7 +6,7 @@
   <ul>
     {% for fg in fokusgruppe_liste %}
       <li>
-        <a href="{{ fg.get_absolute_url }}">{{ fg.title }}</a> ({{fg.author}})
+        <a href="{{ fg.get_absolute_url }}">{{ fg.elev.fornavn }} {{fg.elev.fornavn}}</a>
       </li>
     {% endfor %}
   </ul>

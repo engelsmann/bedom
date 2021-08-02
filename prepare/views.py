@@ -1,8 +1,10 @@
+from typing import ClassVar
+from django.db import models
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.views import generic, View
 
-from .forms import KlasseForm, ForløbForm, ModulForm
+from .forms import KlasseForm #klasse_form #, ModulForm ForløbForm,
 from .models import Elev, Emne, FokusGruppe, Forløb, Klasse, Modul, Skole, Video
 
 class ElevView(generic.DetailView):
@@ -51,8 +53,15 @@ class KlasseFormView(View):
     """
         View til at vælge klasse, når læreren skal vælge modul (trin 1)
     """
+    # QuerySet
+    # List of 2-tuples
+    # ChoiceField
+    # ModelChoiceField?
+    form_class = KlasseForm
+    template_name = 'prepare/fg_valg_klasse.html'
+    
     def get(self, request, *args, **kwargs):
-        form = self.form_class()#initial=self.initial)
+        form = self.form_class(Klasse)#initial=self.initial)
         return render(request, self.template_name, {'form': form})
 
     def post(self, request, *args, **kwargs):

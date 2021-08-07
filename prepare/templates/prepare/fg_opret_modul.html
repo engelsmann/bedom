@@ -1,0 +1,25 @@
+{% extends "base_generic.html" %}
+
+{% block title %}?{% endblock%}
+
+{% block content %}
+    <h2>Vælg modul</h2>
+    <form action="" method="post">
+        {# @TODO: Tre felter i FORM.                                          #}
+        {# Klasse aktiv, men inden brugeren har skiftet i "vælg_klasse",      #}
+        {# bør de øvrige sættes "disabled"                                    #}
+        {# https://www.w3schools.com/tags/att_input_disabled.asp              #}
+        {# Samme med "afholdt", indtil et valg er truffet på "vælg_forløb".   #}
+        {# Kommentarer skal slutte på samme linje som de begynder. #}
+        {% csrf_token %}
+<!--    {% if form.errors %}
+            {% for field in form %}
+                {% for error in field.errors %}
+                    <p> {{ error }} </p>
+                {% endfor %}
+            {% endfor %}
+        {% endif %} -->
+        {{ form.as_p }}
+        <input type="submit">
+    </form>
+{% endblock %}

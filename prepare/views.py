@@ -1,10 +1,11 @@
 from typing import ClassVar
 from django.db import models
+from django.forms import ModelChoiceField
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.views import generic, View
 
-from .forms import KlasseForm #klasse_form #, ModulForm ForløbForm,
+from .forms import OpretModulForm #ForløbForm #, KlasseForm klasse_form #, ModulForm ForløbForm,
 from .models import Elev, Emne, FokusGruppe, Forløb, Klasse, Modul, Skole, Video
 
 class ElevView(generic.DetailView):
@@ -49,35 +50,49 @@ class FokusGruppeView(generic.DetailView):
     context_object_name = 'fokusgruppe_detalje_visning'
 
 # https://docs.djangoproject.com/en/3.2/ref/request-response/
-class KlasseFormView(View):
+class OpretModulFormView(View):
     """
-        View til at vælge klasse, når læreren skal vælge modul (trin 1)
+        View til, når læreren skal oprette modul.
+        Redirect, når modulet er oprettet, til URL 'modulets_fokusgruppe/'
     """
-    # QuerySet
-    # List of 2-tuples
-    # ChoiceField
-    # ModelChoiceField?
-    form_class = KlasseForm
-    template_name = 'prepare/fg_valg_klasse.html'
-    
+    # https://docs.djangoproject.com/en/3.2/ref/forms/fields/#fields-which-handle-relationships
+    form_class = OpretModulForm
+    template_name = 'prepare/fg_opret_modul.html'
+
     def get(self, request, *args, **kwargs):
-        form = self.form_class(Klasse)#initial=self.initial)
-        return render(request, self.template_name, {'form': form})
+        return render(
+            request, 
+            self.template_name, 
+            {
+                # https://docs.djangoproject.com/en/3.2/ref/forms/api/#as-p
+                # Repræsentationsformen AS_P er placeret i Template, se dette
+                'form':         self.form_class, 
+            }
+        ) 
 
     def post(self, request, *args, **kwargs):
         form = self.form_class(request.POST)
+
         if form.is_valid():
+            # Opret eller hent Modul objekt
+            modul, created = Modul.objects.get_or_create(
+                forløb = form.cleaned_data['forløb'],
+                afholdt = form.cleaned_data['afholdt'],
+            )
+            #if( created ):
+            # Opdatér nyoprettet modul objekt
+            modul.save()
+
             # Process form cleaned data by presenting the next step in Modul selection flow
-            # Field `id` in Klasse instance selected by user and POSTed back to server
-            return HttpResponseRedirect('/fg_valg_forloeb/{}/klasse/'.format(form.klasse.id))
-
-        return render(request, self.template_name, {'form': form})
-
-# https://docs.djangoproject.com/en/3.2/ref/class-based-views/base/#templateview
-class VælgForløbView(generic.base.TemplateView):
-    template_name = "vælg_forløb.html"
-
-    def get_context_data(self, id, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['forløbsliste'] = Forløb.objects.get_klasse(pk=id)
-        return context
+            # Field `id` in Forløb instance selected by user and POSTed back to server
+            return HttpResponseRedirect('/fg_valg/{}/modul/'.format(modul.id))
+            #else:
+                # Modul er ikke nyt, oprettes derfor ikke
+            #    pass
+        
+        # Brugeren får sin forkert udfyldte FORM tilbage
+        return render(
+            request, 
+            self.template_name, 
+            {'form': form} #_class}
+        )

@@ -421,8 +421,8 @@ class Modul(models.Model):
         #default=timezone.now(), 
         auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
     )
-    afholdt = DateField(help_text='Dato for planlagt start af forløbet')
-
+    afholdt = DateField(help_text='Planlagt / faktisk dato for modulet')
+    
     class Meta:
         ordering = ['afholdt', 'id']
         verbose_name_plural='moduler'

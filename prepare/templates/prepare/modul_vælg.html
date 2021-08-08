@@ -1,0 +1,28 @@
+{% extends "base_generic.html" %}
+
+{% block title %}Modul t/FG{% endblock%}
+
+{% block content %}
+    <h2>
+        Vælg et af disse moduler
+    </h2>
+    <p>
+        Så du kan vælge medlemmer til fokusgruppe i modulet.<br>
+        Eller <a href="{% url 'opret_modul' %}">sæt modul op</a>.
+    </p>
+    <ul>
+        {% for modul in modul_list %}
+            <li>
+                <a href="{{ modul.get_absolute_url }}">
+                {{ modul }}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+    <form action="" method="post">
+
+        {% csrf_token %}
+        {{ form.as_table }}
+        <input type="submit">
+    </form>
+{% endblock %}

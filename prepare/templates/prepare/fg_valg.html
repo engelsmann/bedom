@@ -1,0 +1,15 @@
+{% extends "base_generic.html" %}
+
+{% block title %}FG-medl. t/modul{% endblock%}
+
+{% block content %}
+    <h2>
+        Vælg fokusgruppe-medlemmer til {{ modul.forløb.emne.fag }}-modulet afholdt
+        {% if modul.idag %}idag{% else %}{{ modul.afholdt }}{% endif %}.
+    </h2>
+    <form action="" method="post">
+        {% csrf_token %}
+        {{ form.as_table }}
+        <input type="submit">
+    </form>
+{% endblock %}

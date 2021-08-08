@@ -242,9 +242,19 @@ class FokusGruppe(models.Model):
         Eleven i en instantiering (række) præsenteres i liste over Fokusgruppe-kandidater,
         hvis bedømt=False eller =Null. Sættes til =True, når observation registreres.
     """
-    modul = models.ManyToManyField('Modul')
-    tilstede = BooleanField(default=True)
-    bedømt = models.BooleanField(null=True)
+    modul = models.ForeignKey(
+        'Modul', 
+        models.SET_NULL,  #on_delete=models.SET_NULL # Handle deletion of Modul objects with FokusGruppe members assigned
+        blank=True, 
+        null=True, 
+        #default='', 
+        # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.ForeignKey.on_delete
+       
+    )
+    # WARNINGS: prepare.FokusGruppe.modul: (fields.W340) null has no effect on ManyToManyField.
+
+    bedømt = models.BooleanField(null=True, default='')
+    tilstede = BooleanField(null=True, default='')
     """
         Tilfældig værdi mellem 0 og 1, der tildeles ved oprettelse.
         Sorteringsværdi (indenfor Elev.Klasse.fokus_runde). 
@@ -262,11 +272,13 @@ class FokusGruppe(models.Model):
     Den faglige er til at stimulere/måle 'Intelligenskvitient'.
     Scores kan alene registreres (not Null), hvis `tilstede`=True (observation ikke mulig af fraværende elever).
     """
-    spørg  = IntegerField(validators=[MinValueValidator(1), MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at søge hjælp på fagligt spørgsmål')
-    hjælp  = IntegerField(validators=[MinValueValidator(1), MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at yde hjælp til faglig problemløsning')
-    faglig = IntegerField(validators=[MinValueValidator(1), MaxValueValidator(4)], null=True, help_text='Score for elevens evne til at bidrage til en faglig samtale')
-    stikord  = CharField(max_length=30, null=True, help_text='Lærerens observationer i ord')
-    reaktion = CharField(max_length=30, null=True, help_text='Elevens bemærkning')
+    # Må flyttes til Fokusgruppe-form:
+    # validators=[MinValueValidator(1), MaxValueValidator(4)], 
+    spørg    = IntegerField(blank=True, null=True, help_text='Score for elevens evne til at søge hjælp på fagligt spørgsmål')
+    hjælp    = IntegerField(blank=True, null=True, help_text='Score for elevens evne til at yde hjælp til faglig problemløsning')
+    faglig   = IntegerField(blank=True, null=True, help_text='Score for elevens evne til at bidrage til en faglig samtale')
+    stikord  = CharField(   blank=True, null=True, max_length=30, help_text='Lærerens observationer i "tre" ord')
+    reaktion = CharField(   blank=True, null=True, max_length=30, help_text='Elevens bemærkning')
 
     class Meta:
         ordering = ['id', 'elev']
@@ -282,11 +294,21 @@ class FokusGruppe(models.Model):
     """Giver 'baglæns' URL-kodning mening for denne Model?"""
     def get_absolute_url(self):
         """Returnerer URL, der tilgår en bestemt instantiering af klassen Klasse (et bestemt hold)."""
-        return reverse('fokusgruppe_detalje_visning', args=[str(self.id)])
+        return reverse('fokusgruppe', args=[str(self.id)])
 
     def __str__(self):
         """Streng, som repræsenterer Elev (på Admin siden etc.)."""
-        return f"{self.elev.fornavn} {self.elev.efternavn} ({self.klasse.fokus_runde}, {self.klasse.kortnavn})"
+        tmp_forløb = tmp_modul = '-'
+        if self.modul:
+            tmp_forløb = self.modul.forløb.titel
+            if self.modul.afholdt:
+                tmp_modul = self.modul.afholdt
+            else:
+                tmp_modul = 'NA'
+            self.modul.forløb.titel
+        else:
+            tmp_forløb = 'Ukendt'
+        return f"{self.elev.fornavn} {self.elev.efternavn}, d. {tmp_modul} om '{tmp_forløb}' (runde {self.klasse.fokus_runde} i {self.klasse.kortnavn})"
     
     def generer_blok(self,modul):
         """
@@ -432,7 +454,7 @@ class Modul(models.Model):
 
     def get_absolute_url(self):
         """Returnerer URL, der tilgår et bestemt Modul."""
-        return reverse('modul-detalje-visning', args=[str(self.id)])
+        return reverse('modul_tildel', args=[str(self.id)])
 
 
 class Adfærd(models.Model):

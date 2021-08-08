@@ -1,11 +1,10 @@
-{% extends "base_generic.html" %}{# 
-    Elev list view minimally implemented, using all possible defaults.
-    https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views#note
-    Default template name for views.ElevListView: elev_list.html
-#}
-
+{% extends "base_generic.html" %}
+{# Elev list view minimally implemented, using all possible defaults.                    #}
+{# https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views#note  #}
+{# Default template name for views.ElevListView: elev_list.html                          #}
+{% block title %}Elever{% endblock  %}
 {% block content %}
-  <h1>Elever</h1>
+  <h1>Dine elever</h1>
   {% if elev_list %}
   <ul>
     {% for elev in elev_list %}

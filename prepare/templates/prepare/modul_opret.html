@@ -12,13 +12,6 @@
         {# Samme med "afholdt", indtil et valg er truffet på "vælg_forløb".   #}
         {# Kommentarer skal slutte på samme linje som de begynder. #}
         {% csrf_token %}
-<!--    {% if form.errors %}
-            {% for field in form %}
-                {% for error in field.errors %}
-                    <p> {{ error }} </p>
-                {% endfor %}
-            {% endfor %}
-        {% endif %} -->
         {{ form.as_p }}
         <input type="submit">
     </form>

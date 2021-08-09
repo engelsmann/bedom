@@ -61,11 +61,13 @@ class FokusGruppeUdvalgListView(generic.ListView):
     model = FokusGruppe
     paginate_by = 10
     context_object_name = 'fokusgruppe_liste' # Your own name for the list as a template variable
-    # https://docs.djangoproject.com/en/3.2/topics/db/queries/#field-lookups
-    # https://docs.djangoproject.com/en/3.2/ref/models/querysets/#isnull  
-    queryset = FokusGruppe.objects.filter(modul__isnull=True).order_by('rand_rank')
-    ikke_tildelt = queryset.count()
     template_name = 'prepare/fokusgruppe_liste.html'  # Template name: fokusgrupper / filename: fokusgruppe-liste.html
+
+    def my_set_queryset(self):
+        # https://docs.djangoproject.com/en/3.2/topics/db/queries/#field-lookups
+        # https://docs.djangoproject.com/en/3.2/ref/models/querysets/#isnull  
+        self.queryset = FokusGruppe.objects.filter(modul__isnull=True).order_by('rand_rank')
+        self.ikke_tildelt = self.queryset.count()
 
     def get_new_block(self):
         """
@@ -74,13 +76,19 @@ class FokusGruppeUdvalgListView(generic.ListView):
            For each Elev: generate and store a FokusGruppe instance (with empty Modul reference).
            Then, the queryset is refreshed.
         """
+        self.my_set_queryset()
+
         if self.ikke_tildelt < self.paginate_by:
             # Find modul
+
             # Locate Klasse in Modul
+
             # Get all Elev related to Klasse instance
+
             # For each Elev: Generate FokusGruppe record 
+            
             # Refresh queryset
-            pass
+            self.my_set_queryset()
         else:
             # Do nothing
             pass

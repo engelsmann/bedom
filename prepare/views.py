@@ -2,7 +2,7 @@
 from datetime import date
 
 from django.db.models.lookups import BuiltinLookup
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, request, response
 from django.shortcuts import render
 from django.views import generic, View
 from django.views.generic.base import TemplateView
@@ -36,11 +36,87 @@ class ElevListView(generic.ListView):
     # https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views#note
     # Default template name: elev_list.html
 
-class FokusGruppeUdvalgListView(generic.ListView):
+class FgTildelTilModulView(View):
+    """
+    Omstrukturering af FokusGruppeUdvalgListView:
+    - Modul PK
+    GET
+    - Alle FokusGruppe med tomt .modul felt sorteret efter .rand_rank felt.
+    - Context: 
+      - Modul: for at gøre skemabrik / Modul forståeligt for læreren (dato, klasse, fag, emne))
+      - nogle FokusGruppe - objekter: Elev-navne, der knyttes sammen som fokusgruppe i dette modul.
+    POST
+    - Opdater FokusGruppe-objekter med CHECKED box mht. .modul felt.
+    - Redirect til static HTML side: "tildeling ok" = "succes".
+    """
+    template_name = 'prepare/fokusgruppe_liste.html'
+    paginate_by = 10
+
+    def my_set_queryset(self):
+        # https://docs.djangoproject.com/en/3.2/topics/db/queries/#field-lookups
+        # https://docs.djangoproject.com/en/3.2/ref/models/querysets/#isnull  
+        self.queryset = FokusGruppe.objects.filter(modul__isnull=True).order_by('rand_rank')
+        self.ikke_tildelt = self.queryset.count()
+
+    def get_new_block(self, pk):
+        """
+           Called by get_context_data().
+           Takes Klasse related to the Modul and finds all Elev records related to Klasse.
+           For each Elev: generate and store a FokusGruppe instance (with empty Modul reference).
+           Then, the queryset is refreshed.
+        """        
+        ## Find modul
+        self.modul = Modul.objects.get(id=pk) # https://stackoverflow.com/a/41708655
+
+        self.modul.afholdt
+
+        # self.my_set_queryset() ## Operationer lagt herunder i stedet for i særskilt metode (?)
+
+        ## Locate Klasse in Modul
+        forløb = self.modul.forløb
+        klasse = forløb.klasse
+        emne = forløb.emne
+        fag = emne.fag
+
+        ## Get all Elev related to Klasse instance
+        klasse_størrelse = Elev.objects.filter().count() # For DEBUG only
+        self.queryset = FokusGruppe.objects.filter(elev__klasse=klasse).filter(modul__isnull=True)
+        ikke_tildelt = self.queryset.count()
+        
+        if ikke_tildelt < self.paginate_by:
+
+            ## For each Elev: Generate FokusGruppe record 
+            
+            ## Refresh queryset
+            self.my_set_queryset()
+        else:
+            ## Do nothing
+            pass
+
+    def get_context_data(self):
+        #context = super(FgTildelTilModulView).get_context_data(**kwargs)
+        context = {
+            'modul' : self.modul, # Giver Klasse = modul.klasse, Emne = modul.forløb.emne, Fag = modul.forløb.emne.fag
+            'fokusgruppe'  : self.queryset # Iterable over FokusGruppe. Giver Ikke_tildelt = fokusgruppe.count
+        } 
+        return context
+
+    def get(self, request, pk):
+        self.get_new_block(pk)
+        
+        return render(request, self.template_name, self.get_context_data())
+        
+
+    def post(self, request, *args, **kwargs):
+        modul = Modul.objects.get(pk=self.kwargs['modul']) # Som i GET()
+
+
+class FokusGruppeUdvalgListView(View):
     """
         Givet modul# (pk i URL) præsenteres brugeren for Elev-referencer: 
         Elever, der ikke endnu er blevet tildelt et modul, hvor læreren fokuserer på 
-        netop DERES adfærd .
+        netop DERES adfærd, kan vinges af i checkbokse i dette view (template), og deltager dermed
+        i den FokusGruppe, der er tilknyttet modulet.
             (1) Hvis der er *tilstrækkeligt* med objekter hvor `modul=Null`, dvs. at den
                 pågældende elev endnu ikke er tilknyttet et modul som medlem af en fokusgruppe:
                 - Vis (pagineret) med de første `klasse.fokus_antal` sorterede elever 
@@ -58,7 +134,7 @@ class FokusGruppeUdvalgListView(generic.ListView):
             (5) Brugeren sendes til applikationens forside.
         Trin 1 og 2 bor i GET-forespørgslen, trin 3-5 sker som respons på POST-forespørgslen.
     """
-    model = FokusGruppe
+    model = Modul
     paginate_by = 10
     context_object_name = 'fokusgruppe_liste' # Your own name for the list as a template variable
     template_name = 'prepare/fokusgruppe_liste.html'  # Template name: fokusgrupper / filename: fokusgruppe-liste.html

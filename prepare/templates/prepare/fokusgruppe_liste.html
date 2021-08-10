@@ -6,12 +6,12 @@
     {% if idag %}idag{% else %}en anden dag{% endif %}.
   </h1>
   <p>Skabelon <code>prepare/fokusgruppe_liste.html</code>.</p>
-  {% if fokusgruppe_liste %}
-  <h3>Elever ({{ antal_ikke_tildelt }}) der kan tildeles modulets fokusgruppe</h3>
+  {% if fokusgruppe %}
+  <h3>Elever ({{ fokusgruppe.count }}) der kan tildeles modulets fokusgruppe</h3>
   <form action="" method="post">
     <table>{# https://www.w3schools.com/html/html_tables.asp#}
       <tr><th>Tildel&nbsp;</th><th>Fornavn</th><th>Efternavn</th><th>Kaldenavn</th><th>rand_rank</th></tr>
-      {% for fg in fokusgruppe_liste %}
+      {% for fg in fokusgruppe %}
         <tr> {# <a href="{{ fg.get_absolute_url }}">{{ fg.elev.fornavn }} {{ fg.elev.efternavn }} {% if fg.elev.kaldenavn %}({{ fg.elev.kaldenavn }}){% endif %} </a> #}
                     <td><input type="checkbox" name="med_i_modul" id="med_i_modul"></td>
                     {# https://docs.djangoproject.com/en/3.2/ref/forms/widgets/#django.forms.CheckboxSelectMultiple #}

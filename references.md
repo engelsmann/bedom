@@ -11,3 +11,7 @@ Primarily it is for automating web applications for testing purposes, but is cer
 Boring web-based administration tasks can (and should) also be automated as well.
 
 [Django framework](https://docs.djangoproject.com/en/3.1/) for development of web applications.
+
+[Djangogirls](https://tutorial.djangogirls.org/en/).
+
+[Mozilla Django Tutorial](https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django).

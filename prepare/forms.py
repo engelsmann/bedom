@@ -7,6 +7,8 @@ from datetime import date, timedelta
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import DateInput, ModelChoiceField
+from django.forms.fields import MultipleChoiceField
+
 from django.http import request
 #from django.http import HttpRequest, HttpResponse
 from django.utils.dateparse import parse_datetime
@@ -15,7 +17,25 @@ from django.utils.translation import ugettext_lazy as _
 
 import pytz
 
-from .models import Forløb, Klasse, Modul # Forløb, 
+from .models import Forløb, Klasse, Modul, FokusGruppe 
+
+class FokusgruppeSelectForm(forms.Form): # Ny version 11/8 2021
+    # Brug PK parameter fra URLConf
+    modul = Modul # Måske nok at definere class, giver View ikke PK? #.objects.get(modul=kwargs['pk'])
+    select_ready_fg_members = FokusGruppe.objects.filter(modul__isnull=True).order_by('rand_rank')
+    choices = [(q.id, q.elev.fornavn + ' ' + q.elev.efternavn) for q in select_ready_fg_members]       
+    fokusgruppe = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple, choices=choices)
+
+    def ensure_minimum_number_of_candidates(self):
+        # If NOT ENOUGH len(choices)<10  (minimum = 10)
+        # Copy Elev list (elev.klasse = modul.forløb.klasse) to FokusGruppe
+        # recursively call to this method (which should pass in first recursion) or stop after two recursions
+        # refresh select_ready_fg_members
+        # refresh choices
+        # refresh fokusgruppe
+        pass
+
+
 
 class OpretModulForm(forms.ModelForm, object):
     klasse = ModelChoiceField(Klasse.objects)
@@ -26,17 +46,17 @@ class OpretModulForm(forms.ModelForm, object):
     # https://docs.djangoproject.com/en/3.2/ref/forms/widgets/#dateinput
     # https://stackoverflow.com/a/50243340/888033
         
-#            'klasse': forms.Select(), # Unnecessary - default for Field type
+    #'klasse': forms.Select(), # Unnecessary - default for Field type
     class Meta(object):
         model=Modul
         fields = ['klasse', 'forløb', 'afholdt'] 
         # https://docs.djangoproject.com/en/3.2/ref/forms/fields/#datefield
-#        error_messages = {
-#            'afholdt': { 
-#                'invalid' : 
-#                "Dato indtastes i formatet D/M/ÅÅÅÅ."
-#            }
-#        }
+    #error_messages = {
+    #        'afholdt': { 
+    #            'invalid' : 
+    #            "Dato indtastes i formatet D/M/ÅÅÅÅ."
+    #        }
+    #    }
 
     # https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Forms#note_2
     # Skal kontrol på tværs af formular-felter holdes i Form.clean()? 
@@ -45,9 +65,9 @@ class OpretModulForm(forms.ModelForm, object):
     # Jeg prøvede at tilgå "fremmede clean_data" i clean_forløb (fx clean_data['klasse']),
     # og det fejler.
     # https://docs.djangoproject.com/en/3.2/ref/forms/validation/#validating-fields-with-clean
-#    def clean_forløb(self):
-#        data = self.cleaned_data['forløb']
-#        return data
+    #def clean_forløb(self):
+    #    data = self.cleaned_data['forløb']
+    #    return data
 
     def clean_afholdt(self):
         data = self.cleaned_data['afholdt']

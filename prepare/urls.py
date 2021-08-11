@@ -9,7 +9,8 @@ urlpatterns = [
     path('modul_liste/',           views.ModulListView.as_view(), name='vælg_modul'),
 
     # Baglæns reference fra  prepare.models.modul.get_absolute_url
-    path('modul_tildel/<int:pk>/', views.FgTildelTilModulView.as_view(), name='modul_tildel'),
+    path('modul_tildel/<int:pk>/', views.FokusgruppeSelectFormView.as_view(), name='modul_tildel'),
+#    path('modul_tildel/<int:pk>/', views.FgTildelTilModulView.as_view(), name='modul_tildel'),
 #    path('modul_tildel/<int:pk>/', views.FokusGruppeUdvalgListView.as_view(), name='modul_tildel'),
 #    path('tildel/<int:pk>/modul', views.FokusGruppeUdvalgListView.as_view(), name='tildel'),    
     path('observér/<int:pk>/modul', views.FokusGruppeObservationView.as_view(), name='observér'),    

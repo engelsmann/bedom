@@ -1,27 +1,16 @@
 {% extends "base_generic.html" %}
-
+{% block title %}Udvælg til FG{% endblock  %}
 {% block content %}
   <h1>
-    Tildel fokusgruppe-medlemmer til modul
-    {% if idag %}idag{% else %}en anden dag{% endif %}.
+    Time i {{ modul.forløb.klasse.kortnavn}}{% if idag %} idag {% else %} den {{ modul.afholdt }}{% endif %}:
+    {{ modul.forløb.emne.titel}} ({{ modul.forløb.emne.fag}}).
   </h1>
   <p>Skabelon <code>prepare/fokusgruppe_liste.html</code>.</p>
-  {% if fokusgruppe %}
-  <h3>Elever ({{ fokusgruppe.count }}) der kan tildeles modulets fokusgruppe</h3>
+  {% if navneliste_checkboxe %}
+  <h3>Elever ({{ ikke_tildelt }}) der kan tildeles modulets fokusgruppe</h3>
   <form action="" method="post">
-    <table>{# https://www.w3schools.com/html/html_tables.asp#}
-      <tr><th>Tildel&nbsp;</th><th>Fornavn</th><th>Efternavn</th><th>Kaldenavn</th><th>rand_rank</th></tr>
-      {% for fg in fokusgruppe %}
-        <tr> {# <a href="{{ fg.get_absolute_url }}">{{ fg.elev.fornavn }} {{ fg.elev.efternavn }} {% if fg.elev.kaldenavn %}({{ fg.elev.kaldenavn }}){% endif %} </a> #}
-                    <td><input type="checkbox" name="med_i_modul" id="med_i_modul"></td>
-                    {# https://docs.djangoproject.com/en/3.2/ref/forms/widgets/#django.forms.CheckboxSelectMultiple #}
-                    <td>{{ fg.elev.fornavn }}<input type="hidden" name="fg_id" id="fg_id" value="{{ fg.id }}"></td>
-                    <td>{{ fg.elev.efternavn }}</td>
-                    <td>{% if fg.elev.kaldenavn %}{{ fg.elev.kaldenavn }}{% endif %}</td>
-                    <td>{{ fg.rand_rank }}</td>
-        </tr>{# Bemærk skjult FG_ID med hver række ??? #}
-      {% endfor %}
-    <table>
+    {% csrf_token %}
+    {{ navneliste_checkboxe }}<br>
     <input type="submit" value="Tilmeld"/>
   </form>
   {% else %}

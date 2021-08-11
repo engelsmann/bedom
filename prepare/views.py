@@ -2,17 +2,21 @@
 from datetime import date
 
 from django.db.models.lookups import BuiltinLookup
+from django import forms
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, request, response
 from django.shortcuts import render
-from django.views import generic, View
+from django.urls      import reverse
+from django.views     import generic, View
 from django.views.generic.base import TemplateView
+from django.views.generic.edit import FormView
 from django.views.generic.list import ListView
 
-from .forms import OpretModulForm #ForløbForm #, KlasseForm klasse_form #, ModulForm ForløbForm,
+from .forms import OpretModulForm, FokusgruppeSelectForm
 from .models import Elev, Emne, FokusGruppe, Forløb, Klasse, Modul, Skole, Video
 
 class HomeView(TemplateView):
     template_name='index.html'
+
 
 class ElevView(generic.DetailView):
     """
@@ -23,6 +27,7 @@ class ElevView(generic.DetailView):
     context_object_name = 'elev_stamdata'
     template_name = 'prepare/elev_detaljer.html'
 
+
 class ElevDashboard(generic.detail.SingleObjectMixin, generic.ListView):
     """
         Oversigt over alle præstationsbeskrivende ressourcer knyttet til en elev.
@@ -30,11 +35,34 @@ class ElevDashboard(generic.detail.SingleObjectMixin, generic.ListView):
     """
     pass
 
-# https://docs.djangoproject.com/en/3.2/ref/class-based-views/generic-display/#listview
+
 class ElevListView(generic.ListView):
+    # https://docs.djangoproject.com/en/3.2/ref/class-based-views/generic-display/#listview
     model = Elev
     # https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views#note
     # Default template name: elev_list.html
+
+class FokusgruppeSelectFormView(FormView):
+    template_name = 'prepare/fokusgruppe_liste.html'
+    form_class = FokusgruppeSelectForm
+    
+    def get_success_url(self):
+        """
+            Når modul (PK) har fået sine kandidater, præsenteres modulet MED LISTE over disse kandidater
+            https://docs.djangoproject.com/en/3.2/ref/class-based-views/mixins-editing/#django.views.generic.edit.FormMixin.get_success_url
+        """
+        # https://docs.djangoproject.com/en/3.2/ref/urlresolvers/#reverse
+        return reverse(
+            "fokusgruppe_klar", 
+            kwargs = {
+                'pk' : self.pk ## Mon ikke View-objektet 'self' har PARAMETEREN 'pk', den er kaldt med, fra UrlConf?
+            }
+        )
+
+    def form_valid(self, form):
+        form.ensure_minimum_number_of_candidates()
+        return super().form_valid(form)
+
 
 class FgTildelTilModulView(View):
     """
@@ -72,18 +100,18 @@ class FgTildelTilModulView(View):
 
         # self.my_set_queryset() ## Operationer lagt herunder i stedet for i særskilt metode (?)
 
-        ## Locate Klasse in Modul
-        forløb = self.modul.forløb
-        klasse = forløb.klasse
-        emne = forløb.emne
-        fag = emne.fag
+        ## Locate Klasse, etc in Modul
+        forløb      = self.modul.forløb
+        self.klasse = forløb.klasse
+        self.emne   = forløb.emne
+        self.fag    = forløb.emne.fag
 
         ## Get all Elev related to Klasse instance
         klasse_størrelse = Elev.objects.filter().count() # For DEBUG only
-        self.queryset = FokusGruppe.objects.filter(elev__klasse=klasse).filter(modul__isnull=True)
-        ikke_tildelt = self.queryset.count()
+        self.queryset = FokusGruppe.objects.filter(elev__klasse=forløb.klasse).filter(modul__isnull=True)
+        self.ikke_tildelt = self.queryset.count()
         
-        if ikke_tildelt < self.paginate_by:
+        if self.ikke_tildelt < self.paginate_by:
 
             ## For each Elev: Generate FokusGruppe record 
             
@@ -97,13 +125,22 @@ class FgTildelTilModulView(View):
         #context = super(FgTildelTilModulView).get_context_data(**kwargs)
         context = {
             'modul' : self.modul, # Giver Klasse = modul.klasse, Emne = modul.forløb.emne, Fag = modul.forløb.emne.fag
-            'fokusgruppe'  : self.queryset # Iterable over FokusGruppe. Giver Ikke_tildelt = fokusgruppe.count
+            # List of 2-tuples to MultipleChoiceField
+            # https://docs.djangoproject.com/en/3.2/ref/forms/fields/#multiplechoicefield
+            # itemgetter? https://stackoverflow.com/a/39702851/888033
+            'navneliste_checkboxe'  : self.navneliste_checkboxe,
+            'ikke_tildelt' : self.ikke_tildelt,
+            'klasse' : self.klasse,
+            'emne' : self.emne,
+            'fag' : self.fag
         } 
         return context
 
     def get(self, request, pk):
         self.get_new_block(pk)
-        
+        choices = [(q.id, q.elev.fornavn + ' ' + q.elev.efternavn) for q in self.queryset]       
+        f = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple, choices=choices)
+        self.navneliste_checkboxe = choices
         return render(request, self.template_name, self.get_context_data())
         
 
@@ -169,9 +206,8 @@ class FokusGruppeUdvalgListView(View):
             # Do nothing
             pass
 
-
-#    def get_query_set(self):
-#       return Modul.objects.filter()
+    #    def get_query_set(self):
+    #       return Modul.objects.filter()
     def get_context_data(self, **kwargs):
         """
             ENTEN overskriv get_context_data() ELLER definer get_query_set()
@@ -196,11 +232,13 @@ class FokusGruppeUdvalgListView(View):
     def idag(self):
         return True #date.today() == self.model.modul.afholdt
 
+
 class FokusGruppeView(generic.DetailView):
     model = FokusGruppe
 
-# https://docs.djangoproject.com/en/3.2/ref/request-response/
+
 class OpretModulFormView(View):
+    # https://docs.djangoproject.com/en/3.2/ref/request-response/
     """
         For læreren til at oprette Modul.
         Redirect, når modulet er oprettet, til URL 'modulets_fokusgruppe/'
@@ -247,6 +285,7 @@ class OpretModulFormView(View):
             {'form': form} #_class}
         )
 
+
 class ModulListView(generic.ListView):
     """
         Præsentere liste med links til moduler.
@@ -254,8 +293,8 @@ class ModulListView(generic.ListView):
     model=Modul
     template_name = "prepare/modul_vælg.html"
 
-#    class Meta:
-#        pass
+    #    class Meta:
+    #        pass
 
     def get_context_data(self, **kwargs):
         context = super(ModulListView, self).get_context_data(**kwargs)
@@ -266,6 +305,7 @@ class ModulListView(generic.ListView):
     @property
     def idag(self):
         return date.today() == self.model.afholdt
+
 
 class FokusGruppeObservationView(generic.DetailView):
     pass

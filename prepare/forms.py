@@ -10,7 +10,7 @@ from django.forms import DateInput, ModelChoiceField
 from django.forms.fields import MultipleChoiceField
 
 from django.http import request
-#from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import datetime
 from django.utils.translation import ugettext_lazy as _
@@ -20,11 +20,32 @@ import pytz
 from .models import Forløb, Klasse, Modul, FokusGruppe 
 
 class FokusgruppeSelectForm(forms.Form): # Ny version 11/8 2021
+      # - Indskydelse (11/8, eftermiddag): Brug ModelForm, vølg kun afholdt og forløb felter.
+      #   Formål: Form får "automatisk" PK-parameter. Elever vælges ud fra Klasse.
     # Brug PK parameter fra URLConf
     modul = Modul # Måske nok at definere class, giver View ikke PK? #.objects.get(modul=kwargs['pk'])
     select_ready_fg_members = FokusGruppe.objects.filter(modul__isnull=True).order_by('rand_rank')
     choices = [(q.id, q.elev.fornavn + ' ' + q.elev.efternavn) for q in select_ready_fg_members]       
     fokusgruppe = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple, choices=choices)
+
+    def __init__(self, **kwargs):
+        # Do I need to construct manually???
+        # I think so, as I have a hard time putting the Modul identified by caller URL,
+        # and I hope to access that Primary Key, PK, through Form self (or View self)?
+        # OK, Didn't work as View constructor. Trying Form constructor
+        super().__init__(**kwargs)
+        
+        ## Find Modul based on PK parameter (from UrlConf)
+        ## Regarding HttpRequest.urlconf:
+        ## https://docs.djangoproject.com/en/3.2/ref/request-response/#attributes-set-by-application-code
+        # .urlconf ikke sat af middleware
+        self.modul = Modul.objects.get(id=kwargs['pk']) # https://stackoverflow.com/a/41708655
+
+        ## Locate Klasse object, etc in Modul
+        forløb = self.modul.forløb
+        self.klasse = forløb.klasse
+        self.emne   = forløb.emne
+        self.fag    = forløb.emne.fag
 
     def ensure_minimum_number_of_candidates(self):
         # If NOT ENOUGH len(choices)<10  (minimum = 10)

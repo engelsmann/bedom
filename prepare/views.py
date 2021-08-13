@@ -7,9 +7,10 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, request
 from django.shortcuts import render
 from django.urls      import reverse
 from django.views     import generic, View
-from django.views.generic.base import TemplateView
-from django.views.generic.edit import FormView
-from django.views.generic.list import ListView
+from django.views.generic.base   import TemplateView
+from django.views.generic.detail import SingleObjectMixin
+from django.views.generic.edit   import FormView
+from django.views.generic.list   import ListView
 
 from .forms import OpretModulForm, FokusgruppeSelectForm
 from .models import Elev, Emne, FokusGruppe, Forløb, Klasse, Modul, Skole, Video
@@ -42,10 +43,88 @@ class ElevListView(generic.ListView):
     # https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views#note
     # Default template name: elev_list.html
 
+class ProtoView(SingleObjectMixin, View):
+    template_name = 'proto.html'
+    def get_queryset(self):
+        return Modul.objects.get(id=self.kwargs['pk'])
+    def get_context_data(self, **kwargs):
+        return { 'modul' : self.get_queryset() }
+    def get(self, request, *args, **kwargs):
+        self.modul = self.get_object
+        return render(request, template_name='proto.html', context=self.get_context_data())
+    
+
 class FokusgruppeSelectFormView(FormView):
     template_name = 'prepare/fokusgruppe_liste.html'
-    form_class = FokusgruppeSelectForm
-    
+    form_class = FokusgruppeSelectForm #(kwargs)
+
+    def __init__(self, *args, **kwargs):
+        # Do I need to construct manually???
+        # I think so, as I have a hard time putting the Modul identified by caller URL,
+        # and I hope to access that Primary Key, PK, through Form self (or View self)?
+        # OK, Didn't work as View constructor. Trying Form constructor
+        # Trying to run the whole thing in get_context_data()
+        #pass
+        super(FormView, self).__init__(**kwargs)
+        
+
+    def my_fg_queryset(self):
+        # (Kopieret fra FgTildelTilModulView)
+        # https://docs.djangoproject.com/en/3.2/topics/db/queries/#field-lookups
+        # https://docs.djangoproject.com/en/3.2/ref/models/querysets/#isnull
+        self.klasse = Modul.objects.get(self.pk).forløb.klasse
+        self.fg_queryset = FokusGruppe.objects.filter(modul__isnull=True).order_by('rand_rank')
+        self.ikke_tildelt = self.fg_queryswt.count()
+
+    def get_new_block(self):
+        # (Kopieret fra FgTildelTilModulView)
+        """
+           Called by get_context_data().
+           Takes Klasse related to the Modul and finds all Elev records related to Klasse.
+           For each Elev: generate and store a FokusGruppe instance (with empty Modul reference).
+           Then, the queryset is refreshed.
+        """        
+        ## Get all Elev objects related to Klasse object
+        self.my_fg_queryset(self)
+        #self.fg_queryst = FokusGruppe.objects.filter(elev__klasse=forløb.klasse).filter(modul__isnull=True)
+        #self.ikke_tildelt = self.fg_queryst.count()
+        
+        if self.ikke_tildelt < self.paginate_by:
+
+            ## For each Elev in Modul's Klasse: Generate FokusGruppe record 
+            
+            ## Refresh queryset - necessary ?
+            self.my_set_queryset()
+        else:
+            ## Do nothing
+            pass
+
+    def get_context_data(self, **kwargs):
+        # (Kopieret fra FgTildelTilModulView)
+        # https://stackoverflow.com/q/46168117/888033
+        context = super(FokusgruppeSelectFormView, self).get_context_data(**kwargs) # KWARGS ukendt
+        ## Find Modul based on PK parameter (from UrlConf)
+        self.modul = Modul.objects.get(id=request.pk) # https://stackoverflow.com/a/41708655
+
+        ## Locate Klasse object, etc in Modul
+        forløb = self.modul.forløb
+        self.klasse = forløb.klasse
+        self.emne   = forløb.emne
+        self.fag    = forløb.emne.fag
+
+        context = {
+            'modul' : self.modul, # Giver Klasse = modul.klasse, Emne = modul.forløb.emne, Fag = modul.forløb.emne.fag
+            # List of 2-tuples to MultipleChoiceField
+            # https://docs.djangoproject.com/en/3.2/ref/forms/fields/#multiplechoicefield
+            # itemgetter? https://stackoverflow.com/a/39702851/888033
+            'navneliste_checkboxe'  : self.navneliste_checkboxe,
+            'ikke_tildelt' : self.ikke_tildelt,
+            'klasse' : self.klasse,
+            'emne' : self.emne,
+            'fag' : self.fag
+        } 
+        return context
+
     def get_success_url(self):
         """
             Når modul (PK) har fået sine kandidater, præsenteres modulet MED LISTE over disse kandidater
@@ -60,7 +139,12 @@ class FokusgruppeSelectFormView(FormView):
         )
 
     def form_valid(self, form):
-        form.ensure_minimum_number_of_candidates()
+        """
+            Called on POST when FORM data validate.
+            Redirects to get_success_url().
+            https://docs.djangoproject.com/en/3.2/ref/class-based-views/mixins-editing/#django.views.generic.edit.FormMixin.form_valid
+        """
+        form.ensure_minimum_number_of_candidates() #
         return super().form_valid(form)
 
 

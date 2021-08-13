@@ -45,13 +45,11 @@ class ElevListView(generic.ListView):
 
 class ProtoView(SingleObjectMixin, View):
     template_name = 'proto.html'
-    def get_queryset(self):
-        return Modul.objects.get(id=self.kwargs['pk'])
     def get_context_data(self, **kwargs):
-        return { 'modul' : self.get_queryset() }
+        return { 'modul' : Modul.objects.get(id=self.kwargs['pk']) }
     def get(self, request, *args, **kwargs):
         self.modul = self.get_object
-        return render(request, template_name='proto.html', context=self.get_context_data())
+        return render(request, 'proto.html', self.get_context_data())
     
 
 class FokusgruppeSelectFormView(FormView):

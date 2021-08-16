@@ -1,1 +1,24 @@
-{{ modul }}
+<h2>
+    {{ modul.forløb }}
+</h2>
+<p>Tilmeldinger til modul {{ modul.id }}, {{ modul.afholdt }}</p>
+<form method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <table class="table table-striped">
+        <tr>
+            <th>Tilmeldes</th>
+            <th>Elev</th>
+        </tr>
+        {% for candidate in fokusgruppe_liste %}
+            <tr>
+                <td>
+                    <input type="checkbox"   value='{{candidate.id}}' 
+                           name='for_action' id='for_action' >
+                    </td>
+                <td>{{ candidate.elev }}</td>
+                </tr>
+        {% endfor %}
+    </table>
+    <input type="submit" value="Tilmeld">
+</form>

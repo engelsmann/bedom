@@ -12,7 +12,7 @@ from django.views.generic.detail import SingleObjectMixin
 from django.views.generic.edit   import FormView
 from django.views.generic.list   import ListView
 
-from .forms import OpretModulForm, FokusgruppeSelectForm
+from .forms import FokusgruppeSelectForm, OpretModulForm, ProtoForm
 from .models import Elev, Emne, FokusGruppe, Forløb, Klasse, Modul, Skole, Video
 
 class HomeView(TemplateView):
@@ -43,14 +43,76 @@ class ElevListView(generic.ListView):
     # https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Generic_views#note
     # Default template name: elev_list.html
 
-class ProtoView(SingleObjectMixin, View):
-    template_name = 'proto.html'
-    def get_context_data(self, **kwargs):
-        return { 'modul' : Modul.objects.get(id=self.kwargs['pk']) }
-    def get(self, request, *args, **kwargs):
-        self.modul = self.get_object
-        return render(request, 'proto.html', self.get_context_data())
-    
+def protoview(request, **kwargs):
+    """
+        Aim: Handles URL pattern 'modul_tildel/<int:pk>/'
+        Initial step: (GET) populates  Form.form  and list of  FokusGruppe.elev  instances 
+                      RELATED TO  modul.forløb.klasse  BUT NOT YET related 
+                      to  Modul  (as FokusGruppe.modul==Null).
+        Receiving step: (POST) validates Modul.afholdt date
+                        Validates the list POST.for_action as list of Boolean.
+                        If valid:
+                          Takes action (presents as changed, updates instance) on the following:
+                          - If Modul.afholdt is changed.
+                          - If for_action list is not empty.
+                        If not valid:
+                          Behaves as GET but with validation error messages.
+    """
+    modul = Modul.objects.get( id=kwargs['pk'] )
+    if request.method == 'POST':
+        form = ProtoForm(request.POST, instance=modul)
+        if form.is_valid():
+            # Date comparison?
+            requested_module_date = form.cleaned_data['afholdt']
+            #requested_module_date_type = type(requested_module_date)
+            # https://docs.djangoproject.com/en/3.2/ref/models/instances/#refreshing-objects-from-database
+            modul.refresh_from_db()
+            afholdt_must_update = not (requested_module_date == modul.afholdt) 
+
+            # Only AFHOLDT validated by FORM
+            # Primary Keys of FokusGruppe instances checked in list by user
+            list_of_id_for_action = request.POST.getlist( 'for_action' )
+            # Manually validate FOR_ACTION list
+            clean = {}
+            tmp = list()
+            for i in list_of_id_for_action:
+                #if type(i)=='str':
+                tmp.append(int(i))
+            if tmp: # len(tmp) != 0
+                clean['fg_list_of_ids'] = tmp
+                clean['fg_update_list'] = FokusGruppe.objects.filter(pk__in=tmp)
+
+            # QuerySet of instances to update
+            #fg_update_list = FokusGruppe.objects.filter( pk__in=clean['fg_list'] )
+
+            # Update DB
+            #modul.update(afholdt=clean['afholdt'])
+            #fg_update_list.update(modul=modul)
+
+            context ={
+                'modul' : modul,
+                'afholdt_updates' : afholdt_must_update,
+                'requested_module_date' : requested_module_date,
+                #'requested_module_date_type' : requested_module_date_type
+            }
+            if 'fg_list_of_ids' in clean:
+                context['fg_list_of_ids']= clean['fg_list_of_ids']
+            if 'fg_update_list' in clean:
+                context['fg_update_list'] = clean['fg_update_list']
+            
+            return render(request, 'confirm_changes.html', context)
+
+    #else: 
+    # POST not validated, or GET
+    context = { 
+        'modul' : modul,
+        'form' : ProtoForm(instance=modul), # Errors when not validating POST?
+        'fokusgruppe_liste' : FokusGruppe.objects.filter(
+            modul__isnull=True,
+            elev__klasse=modul.forløb.klasse                
+        )
+    }
+    return render(request, 'proto.html', context)
 
 class FokusgruppeSelectFormView(FormView):
     template_name = 'prepare/fokusgruppe_liste.html'

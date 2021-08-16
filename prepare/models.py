@@ -218,17 +218,11 @@ class FokusGruppe(models.Model):
 
     Sammenlagt FokusGruppe og Adfærd 1/8 2021
     """
-
     # Fields
     #elev_fg_runde_id = AutoField(primary_key=True, verbose_name='Fokusgruppens Elev-løbenummer')
     id = AutoField(primary_key=True, verbose_name='Fokusgruppe-kandidatens elev+modul-løbenummer')
     """Klasse (og dermed `Elev.Klasse.fokus_runde`), samt Elev gives af denne relation."""
     elev = models.ForeignKey('Elev', on_delete=models.RESTRICT, null=True)
-    """
-        Modul udfyldes ikke ved generering af del-liste, 
-        først når læreren udvælger hvor mange, der skal observeres i det pågældende Modul.
-        Dato (og tid) gives af denne relation.
-    """
     oprettet = models.DateTimeField(
         #default=timezone.now() 
         auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
@@ -237,6 +231,11 @@ class FokusGruppe(models.Model):
         #default=timezone.now(), 
         auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
     )
+    """
+        Modul udfyldes ikke ved generering af del-liste, 
+        først når læreren udvælger hvor mange, der skal observeres i det pågældende Modul.
+        Dato (og tid) gives af denne relation.
+    """
     """
         Modul giver Forløb og knytter Elev til modulets fokusgruppe, når tildelt.
         Eleven i en instantiering (række) præsenteres i liste over Fokusgruppe-kandidater,
@@ -253,8 +252,11 @@ class FokusGruppe(models.Model):
     )
     # WARNINGS: prepare.FokusGruppe.modul: (fields.W340) null has no effect on ManyToManyField.
 
+    #@property eller overflødig?
     bedømt = models.BooleanField(null=True, default='')
+
     tilstede = BooleanField(null=True, default='')
+    
     """
         Tilfældig værdi mellem 0 og 1, der tildeles ved oprettelse.
         Sorteringsværdi (indenfor Elev.Klasse.fokus_runde). 
@@ -284,10 +286,10 @@ class FokusGruppe(models.Model):
         ordering = ['id', 'elev']
         verbose_name = 'fokusgruppe til adfærdsobservation'
         verbose_name_plural = 'fokusgrupper til adfærdsobservation'
-#    class Meta:
-#        #ordering = ['']
-#        verbose_name='adfærdsobservation'
-#        verbose_name_plural='adfærdsobservationer'
+    # class Meta:
+    #     #ordering = ['']
+    #     verbose_name='adfærdsobservation'
+    #     verbose_name_plural='adfærdsobservationer'
 
  
     # Methods
@@ -310,21 +312,6 @@ class FokusGruppe(models.Model):
             tmp_forløb = 'Ukendt'
         return f"{self.elev.fornavn} {self.elev.efternavn}, d. {tmp_modul} om '{tmp_forløb}' (runde {self.klasse.fokus_runde} i {self.klasse.kortnavn})"
     
-    def generer_blok(self,modul):
-        """
-            Danner 'blok' med en hel klasses aktive, tilmeldte elever.
-            Feltet `rand_rank` bestemmer (en ny, tilfældig) rækkefølge for sampling/observation.
-            Feltet `klasse.fokus_runde` hentes fra Klasse som @property (se nedenfor).
-            Felterne `modul` og `bedømt` sættes ikke (Null) ved generering af blokken. 
-        """
-        if( modul.forløb.klasse == self.elev.klasse):
-            self.modul = modul
-            print("\nKlasse = Klasse. OK!")
-        else:
-            print("\nKlasse != Klasse. PROBLEM!")
-
-
-
     @property # Getter method - avoiding reduncant data entry
     # Frit efter https://www.geeksforgeeks.org/python-property-decorator-property/
     def runde(self):
@@ -333,6 +320,19 @@ class FokusGruppe(models.Model):
     @property
     def klasse(self):
         return self.elev.klasse
+
+    def generer_blok(self,modul):
+        """
+            Danner 'blok' med en hel klasses aktive, tilmeldte elever.
+            Feltet `rand_rank` bestemmer (en ny, tilfældig) rækkefølge for sampling/observation.
+            Feltet `klasse.fokus_runde` hentes fra Klasse som @property (se nedenfor).
+            Felterne `modul` og `bedømt` sættes ikke (Null) ved generering af blokken. 
+        """
+        if( modul.forløb.klasse == self.klasse):
+            self.modul = modul
+            print("\nKlasse = Klasse. OK!")
+        else:
+            print("\nKlasse != Klasse. PROBLEM!")
 
 
 class Emne(models.Model):

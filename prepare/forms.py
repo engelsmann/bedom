@@ -19,6 +19,14 @@ import pytz
 
 from .models import Forløb, Klasse, Modul, FokusGruppe 
 
+class ProtoForm(forms.ModelForm):
+    class Meta:
+        model = Modul
+        fields = ['afholdt']
+    def clean(self):
+        # https://docs.djangoproject.com/en/3.2/ref/forms/validation/#validating-fields-with-clean
+        return super().clean()
+
 class FokusgruppeSelectForm(forms.Form): # Ny version 11/8 2021
       # - Indskydelse (11/8, eftermiddag): Brug ModelForm, vølg kun afholdt og forløb felter.
       #   Formål: Form får "automatisk" PK-parameter. Elever vælges ud fra Klasse.
@@ -55,7 +63,6 @@ class FokusgruppeSelectForm(forms.Form): # Ny version 11/8 2021
         # refresh choices
         # refresh fokusgruppe
         pass
-
 
 
 class OpretModulForm(forms.ModelForm, object):

@@ -1,0 +1,16 @@
+<h2>
+    {{ modul.forløb }}
+</h2>
+<p>Tilmeldinger til modul {{ modul.id }}, {{ modul.afholdt }}</p>
+{% if afholdt_updates %}
+    Ny dato {{ requested_module_date }}.<br>
+{% else %}
+    Afholdelsesdato ikke ændret af bruger.<br>
+{% endif %}
+{% if fg_list_of_ids %}
+    {% for fgid in fg_list_of_ids %}
+        {{ fgid }}, 
+    {% endfor %}
+{% else %}
+    Ingen kandidater valgt med flueben.
+{% endif %}

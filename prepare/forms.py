@@ -32,7 +32,8 @@ class FokusgruppeSelectForm(forms.Form): # Ny version 11/8 2021
       #   Formål: Form får "automatisk" PK-parameter. Elever vælges ud fra Klasse.
     # Brug PK parameter fra URLConf
     modul = Modul # Måske nok at definere class, giver View ikke PK? #.objects.get(modul=kwargs['pk'])
-    select_ready_fg_members = FokusGruppe.objects.filter(modul__isnull=True).order_by('rand_rank')
+    select_ready_fg_members = FokusGruppe.objects\
+        .filter(modul__isnull=True,elev__udmeldt__isnull=True).order_by('rand_rank')
     choices = [(q.id, q.elev.fornavn + ' ' + q.elev.efternavn) for q in select_ready_fg_members]       
     fokusgruppe = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple, choices=choices)
 

@@ -150,12 +150,10 @@ class Elev(models.Model):
         editable=False
     )
     oprettet = models.DateTimeField(
-        #default=timezone.now() #
         auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
     )
     opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
-        #default=timezone.now(), #
-        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
+        auto_now=True,
     )
     fornavn = models.CharField(
         max_length=50, 
@@ -179,6 +177,16 @@ class Elev(models.Model):
         validators=[MinLengthValidator(8)],
         help_text='Personens officielle fornavn(e) som i protokol'
     )
+    indmeldt = models.DateField(
+        blank=True,
+        null=True,
+        help_text='Dato for hvornår eleven begynder at gå i klassen'
+    )
+    udmeldt = models.DateField(
+        blank=True,
+        null=True,
+        help_text='Dato for hvornår eleven er holdt op med at gå i klassen'
+    )
     mail = models.EmailField(help_text='Mail, læreren kan bruge til kommunikation med eleven')
     # https://stackoverflow.com/q/19130942/888033
     mobil = models.CharField(
@@ -195,7 +203,6 @@ class Elev(models.Model):
 
     class Meta:
         ordering = ['klasse', 'fornavn', 'efternavn']
-        verbose_name = 'elev'
         verbose_name_plural = 'elever'
 
     # Methods
@@ -308,9 +315,10 @@ class FokusGruppe(models.Model):
             else:
                 tmp_modul = 'NA'
             self.modul.forløb.titel
+            return f"{self.elev.fornavn} {self.elev.efternavn}, d. {tmp_modul} om '{tmp_forløb}' (runde {self.klasse.fokus_runde} i {self.klasse.kortnavn})"
         else:
             tmp_forløb = 'Ukendt'
-        return f"{self.elev.fornavn} {self.elev.efternavn}, d. {tmp_modul} om '{tmp_forløb}' (runde {self.klasse.fokus_runde} i {self.klasse.kortnavn})"
+        return f"{self.elev.fornavn} {self.elev.efternavn} ikke tildelt (runde {self.klasse.fokus_runde} i {self.klasse.kortnavn})"
     
     @property # Getter method - avoiding reduncant data entry
     # Frit efter https://www.geeksforgeeks.org/python-property-decorator-property/

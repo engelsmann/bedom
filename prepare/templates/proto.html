@@ -4,7 +4,9 @@
 <p>Tilmeldinger til modul {{ modul.id }}, {{ modul.afholdt }}</p>
 <form method="POST">
     {% csrf_token %}
-    {{ form.as_p }}
+    {{ form.as_p }}<br>
+    <p>Der er {{ roster_free_count }} kandidater klar til tilmelding.</p>
+    {% if ryst_posen %}<p>Posen blev rystet.</p>{% endif %}
     <table class="table table-striped">
         <tr>
             <th>Tilmeldes</th>
@@ -20,5 +22,16 @@
                 </tr>
         {% endfor %}
     </table>
+    {% if klasseliste %}
+    <table>
+        {% for fg in klasseliste %}
+            <tr>
+                <td>{{ fg }} {{ fg.e.efternavn }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        Ingen "klasseliste"
+    {% endif %}
     <input type="submit" value="Tilmeld">
 </form>

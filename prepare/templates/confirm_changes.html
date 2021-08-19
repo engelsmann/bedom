@@ -8,8 +8,9 @@
     Afholdelsesdato ikke ændret af bruger.<br>
 {% endif %}
 {% if fg_list_of_ids %}
+    Tilknytter kandidat
     {% for fgid in fg_list_of_ids %}
-        {{ fgid }}, 
+        #{{ fgid }}, 
     {% endfor %}
 {% else %}
     Ingen kandidater valgt med flueben.

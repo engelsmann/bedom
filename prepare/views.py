@@ -71,6 +71,7 @@ def protoview(request, **kwargs):
             modul.refresh_from_db()
             afholdt_must_update = not (requested_module_date == modul.afholdt) 
             if afholdt_must_update:
+                modul.afholdt = requested_module_date
                 modul.save()
             # Only AFHOLDT validated by FORM
             # Primary Keys of FokusGruppe instances checked in list by user
@@ -105,30 +106,38 @@ def protoview(request, **kwargs):
     #else: 
     # POST not validated, or GET
 
+    tilmeldte_fg = FokusGruppe.objects.filter(
+        modul=modul
+    ).order_by('elev__fornavn') # https://stackoverflow.com/a/2065949/888033
+    tilmeldt = [fg.elev for fg in tilmeldte_fg]
+
     # Relating Elev.klasse with Modul.forløb.klasse for Elev without Modul:
     roster_free = FokusGruppe.objects.filter(
         modul__isnull=True,
         elev__klasse=modul.forløb.klasse                
     ).order_by('rand_rank') # Gentaget nedenfor under betingelser
     roster_free_count = roster_free.count()
-    roster_must_update = roster_free_count<2
+    roster_must_update = roster_free_count < modul.forløb.klasse.fokus_antal
     if roster_must_update:
         # Hent aktive elever i den klasse, som forløbet kører i:
         k_list = Klasse( modul.forløb.klasse.id ).elev_set.all()
         klasseliste = [(e, random()) for e in k_list]
         klasseliste = sorted(klasseliste, key=lambda x: x[-1]) # Sort list of tuples by last (-1) tuple element.
-        klasseliste = [FokusGruppe(elev=e) for e,r in klasseliste]
+        klasseliste = [FokusGruppe(elev=e) for e,_ in klasseliste]
         for fg in klasseliste:
             fg.save()
+        
         roster_free = FokusGruppe.objects.filter(
             modul__isnull=True,
             elev__klasse=modul.forløb.klasse                
         ).order_by('rand_rank')
+    
     context = { 
         'modul' : modul,
         'form' : ProtoForm(instance=modul), # Errors when not validating POST?
         'fokusgruppe_liste' : roster_free,
-        #'klasseliste' : klasseliste,
+        'tilmeldt' : tilmeldt,
+        'antal_foreslået' : modul.forløb.klasse.fokus_antal - len(tilmeldt),
         'ryst_posen' : roster_must_update,
         'roster_free_count' : roster_free_count,
     }

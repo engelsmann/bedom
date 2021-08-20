@@ -1,11 +1,24 @@
+{% extends 'base_generic.html' %}
+{% block title %}Meld til modul {{ modul.id }}{% endblock %}
+{% block content %}
 <h2>
     {{ modul.forløb }}
 </h2>
 <p>Tilmeldinger til modul {{ modul.id }}, {{ modul.afholdt }}</p>
 <form method="POST">
     {% csrf_token %}
-    {{ form.as_p }}<br>
-    <p>Der er {{ roster_free_count }} kandidater klar til tilmelding.</p>
+    {{ form.as_p }}
+    {% if tilmeldt %}{# Da tilmeldt nu er en LIST med ELEV elementer, bruges  '|lenght'  filter #}
+        <div class="alert alert-primary" role="alert">Der er allerede tilmeldt {{ tilmeldt|length}} elever til modulets fokusgruppe:</div>
+        <table>
+            {% for t in tilmeldt %}
+                <tr><td>{{ t}}</td></tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>Der er endnu ikke tilmeldt nogen til modulet.</p>
+    {% endif %}
+    <div class="alert alert-primary" role="alert">Der er {{ roster_free_count }} kandidater klar til tilmelding.</div>
     {% if ryst_posen %}<p>Posen blev rystet.</p>{% endif %}
     <table class="table table-striped">
         <tr>
@@ -16,22 +29,20 @@
             <tr>
                 <td>
                     <input type="checkbox"   value='{{candidate.id}}' 
-                           name='for_action' id='for_action' >
+                           name='for_action{{candidate.id}}' id='for_action{{candidate.id}}'
+                           {% if candidate.elev in tilmeldt %} {# https://docs.djangoproject.com/en/3.2/ref/templates/builtins/#in-operator #}
+                                class="text-muted" onclick="return false;" {# https://stackoverflow.com/a/6905050/888033 #}
+                            {% else %}
+                               {% if forloop.counter <= antal_foreslået %}checked{% endif %}
+                           {% endif %}
+                           >
                     </td>
-                <td>{{ candidate.elev }}</td>
-                </tr>
-        {% endfor %}
-    </table>
-    {% if klasseliste %}
-    <table>
-        {% for fg in klasseliste %}
-            <tr>
-                <td>{{ fg }} {{ fg.e.efternavn }}</td>
+                <td {% if candidate.elev in tilmeldt %}class="text-muted"{% endif %}>
+                    <label for="for_action{{candidate.id}}">{{ candidate.elev }}</label>
+                </td>
             </tr>
         {% endfor %}
     </table>
-    {% else %}
-        Ingen "klasseliste"
-    {% endif %}
     <input type="submit" value="Tilmeld">
 </form>
+{% endblock %}

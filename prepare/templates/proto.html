@@ -8,11 +8,11 @@
 <form method="POST">
     {% csrf_token %}
     {{ form.as_p }}
-    {% if tilmeldt %}{# Da tilmeldt nu er en LIST med ELEV elementer, bruges  '|lenght'  filter #}
+    {% if tilmeldt %}{# Da tilmeldt nu er en LIST med ELEV-elementer, bruges  '|length'  filter #}
         <div class="alert alert-primary" role="alert">Der er allerede tilmeldt {{ tilmeldt|length}} elever til modulets fokusgruppe:</div>
         <table>
             {% for t in tilmeldt %}
-                <tr><td>{{ t}}</td></tr>
+                <tr><td>{{ t }}</td></tr>
             {% endfor %}
         </table>
     {% else %}
@@ -29,16 +29,12 @@
             <tr>
                 <td>
                     <input type="checkbox"   value='{{candidate.id}}' 
-                           name='for_action{{candidate.id}}' id='for_action{{candidate.id}}'
-                           {% if candidate.elev in tilmeldt %} {# https://docs.djangoproject.com/en/3.2/ref/templates/builtins/#in-operator #}
-                                class="text-muted" onclick="return false;" {# https://stackoverflow.com/a/6905050/888033 #}
-                            {% else %}
-                               {% if forloop.counter <= antal_foreslået %}checked{% endif %}
-                           {% endif %}
+                           name='for_action' id='for_action'
+                           {# if candidate.elev in tilmeldt %} { https://docs.djangoproject.com/en/3.2/ref/templates/builtins/#in-operator }  class="text-muted" onclick="return false;" { https://stackoverflow.com/a/6905050/888033 }  { else %} { % if forloop.counter <= antal_foreslået %}checked{ % endif %} { % endif #}
                            >
                     </td>
                 <td {% if candidate.elev in tilmeldt %}class="text-muted"{% endif %}>
-                    <label for="for_action{{candidate.id}}">{{ candidate.elev }}</label>
+                    <label for="for_action">{{ candidate.elev }}</label>
                 </td>
             </tr>
         {% endfor %}

@@ -1,0 +1,10 @@
+{% extends 'base_generic.html' %}
+{% block title %}Bedøm {{ fokusgruppe.elev }}{% endblock %}
+{% block content %}
+    <h3>{{ fokusgruppe.modul }}</h3>
+    <h2>Bedøm {{ fokusgruppe.elev }}</h2>
+    <form method="POST">
+        {{ form.as_p }}
+        <input type="submit">
+    </form>
+{% endblock  %}

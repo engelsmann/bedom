@@ -1,36 +1,17 @@
 # File: models.py
 
+from django.core.exceptions          import ValidationError
+from django.core.validators          import MaxValueValidator, MinLengthValidator, MinValueValidator
 from django.db                       import models
+from django.db.models.constraints    import UniqueConstraint
 from django.db.models.fields.related import ForeignKey, ManyToManyField
 from django.db.models.fields         import AutoField, BooleanField, CharField, DateField, DateTimeField, IntegerField, TextField, URLField
-
-# For use in Fokusgruppe.rand_rank
-from django.db.models.functions      import Random
-
+from django.db.models.functions      import Random # For use in Fokusgruppe.rand_rank
 from django.urls                     import reverse
-
-# from datetime import datetime # https://stackoverflow.com/a/20106079/888033
-#from django.utils import timezone
-#import pytz
-
-from django.core.validators          import MaxValueValidator, MinLengthValidator, MinValueValidator
+from django.utils.translation        import gettext_lazy as _
 
 import uuid
 
-### June 30, 2021: Troubleshooting
-### https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django/Models#re-run_the_database_migrations
-### After modifying models.py and (both in venv 'base' and venv 'bedom-venv') running 
-### "$ python -m manage runserver": "System check identified no issues (0 silenced)."
-### I get the unintended response to "python -m mananage makemigrations": "No changes detected".
-###
-### SOLUTION: in ../bedom/settings.py add reference to list INSTALLED_APPS:
-### the AppConfig class "PrepareConfig" created by Django (PYTHON -M MANAGE STARTAPP PREPARE)
-### in file ./apps.py of the PREPARE Django application folder.
-### Another consequences is that "$ python -m manage runserver" starts to find a whole lot
-### of errors in my code, which I will correct before trying MAKEMIGRATIONS again...
-### Correcting errors and maneuvering through warnings, I arrive at a point where I can
-### MAKEMIGRATIONS with success and, subsequently, access the Model classes
-### through the ADMIN subpages.
 
 class Skole(models.Model):
     """Samle-struktur (klasse) for klasser. En lærer vil være tilknyttet (mindst 1) skole."""
@@ -250,18 +231,15 @@ class FokusGruppe(models.Model):
     """
     modul = models.ForeignKey(
         'Modul', 
-        models.SET_NULL,  #on_delete=models.SET_NULL # Handle deletion of Modul objects with FokusGruppe members assigned
+        models.SET_NULL,
         blank=True, 
         null=True, 
-        #default='', 
-        # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.ForeignKey.on_delete
-       
     )
-    # WARNINGS: prepare.FokusGruppe.modul: (fields.W340) null has no effect on ManyToManyField.
 
     #@property eller overflødig?
     bedømt = models.BooleanField(null=True, default='')
 
+    """True, hvis Elev var til stede i Modul? Null indtil Elev er bedømt"""
     tilstede = BooleanField(null=True, default='')
     
     """
@@ -293,11 +271,9 @@ class FokusGruppe(models.Model):
         ordering = ['id', 'elev']
         verbose_name = 'fokusgruppe til adfærdsobservation'
         verbose_name_plural = 'fokusgrupper til adfærdsobservation'
-    # class Meta:
-    #     #ordering = ['']
-    #     verbose_name='adfærdsobservation'
-    #     verbose_name_plural='adfærdsobservationer'
-
+        # Suggested by @bdbd https://stackoverflow.com/q/68872046/888033
+        # https://docs.djangoproject.com/en/3.2/ref/models/constraints/#uniqueconstraint
+        constraints = [UniqueConstraint(fields=['elev', 'modul'], name='unik_modul_elev')]
  
     # Methods
     """Giver 'baglæns' URL-kodning mening for denne Model?"""
@@ -329,19 +305,17 @@ class FokusGruppe(models.Model):
     def klasse(self):
         return self.elev.klasse
 
-    def generer_blok(self,modul):
+    #def clean(self,modul):
         """
-            Danner 'blok' med en hel klasses aktive, tilmeldte elever.
-            Feltet `rand_rank` bestemmer (en ny, tilfældig) rækkefølge for sampling/observation.
-            Feltet `klasse.fokus_runde` hentes fra Klasse som @property (se nedenfor).
-            Felterne `modul` og `bedømt` sættes ikke (Null) ved generering af blokken. 
+            https://docs.djangoproject.com/en/3.2/ref/models/instances/#django.db.models.Model.clean
         """
-        if( modul.forløb.klasse == self.klasse):
-            self.modul = modul
-            print("\nKlasse = Klasse. OK!")
-        else:
-            print("\nKlasse != Klasse. PROBLEM!")
-
+    #    if( modul.forløb.klasse == self.klasse ):
+    #        if FokusGruppe.elev in [fg.elev for fg in FokusGruppe.objects.filter(modul=FokusGruppe.modul)]:
+    #            self.modul = modul
+    #        else:
+    #            raise( ValidationError(_(f'Modul {modul} har allerede fået tildelt Elev "{self.elev}".')) )
+    #    else:
+    #        raise( ValidationError(_('Klasse angivet af modul (gennem forløb) stemmer ikke med klasse angivet af elev.')) )
 
 class Emne(models.Model):
     """Faglige emner, som danner rammen om forløb for de enkelte klasser"""
@@ -464,26 +438,6 @@ class Modul(models.Model):
         """Returnerer URL, der tilgår et bestemt Modul."""
         return reverse('modul_tildel', args=[str(self.id)])
 
-
-class Adfærd(models.Model):
-#    id = AutoField(primary_key=True,verbose_name='Løbenummer (automatisk) for adfærdsobservation')
-#    fokusgruppe  = ForeignKey('FokusGruppe', on_delete=models.RESTRICT, null=False)
-#    oprettet = models.DateTimeField(
-        #default=timezone.now() 
-#        auto_now_add=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now_add
-#    )
-#    opdateret = models.DateTimeField( # NB: Dato odateres ved Model.save() ikke ved QuerySet.update(), se dokumenation!
-        #default=timezone.now(), 
-#        auto_now=True, # https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.DateField.auto_now
-#    )
-
-#    def __str__(self):
-#        return f"Adfærd #{self.id} af {self.fokusgruppe.elev} observeret d. {self.modul.afholdt}:\n{self.spørg}/{self.hjælp}/{self.faglig}"
-#
-#    def get_absolute_url(self):
-#        """Returnerer URL, der tilgår observationer af en bestemt Elev i et bestemt Modul."""
-#        return reverse('adfaerd-detalje-visning', args=[str(self.id)])
-    pass
 
 class Video(models.Model):
     """

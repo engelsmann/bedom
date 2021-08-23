@@ -27,6 +27,11 @@ class ProtoForm(forms.ModelForm):
         # https://docs.djangoproject.com/en/3.2/ref/forms/validation/#validating-fields-with-clean
         return super().clean()
 
+class FokusGruppeObserveForm(forms.ModelForm):
+    class Meta:
+        model=FokusGruppe
+        fields = ['tilstede', 'spørg', 'hjælp', 'faglig', 'stikord']
+
 class FokusgruppeSelectForm(forms.Form): # Ny version 11/8 2021
       # - Indskydelse (11/8, eftermiddag): Brug ModelForm, vølg kun afholdt og forløb felter.
       #   Formål: Form får "automatisk" PK-parameter. Elever vælges ud fra Klasse.

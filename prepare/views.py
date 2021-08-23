@@ -14,7 +14,7 @@ from django.views.generic.list   import ListView
 
 from random import random # Kun brugt i tidligt udviklingstrin. Herefter bruges .models.FokusGruppe's egen Random.
 
-from .forms import FokusgruppeSelectForm, OpretModulForm, ProtoForm
+from .forms import FokusgruppeSelectForm, FokusGruppeObserveForm, OpretModulForm, ProtoForm
 from .models import Elev, Emne, FokusGruppe, Forløb, Klasse, Modul, Skole, Video
 
 class HomeView(TemplateView):
@@ -106,6 +106,7 @@ def protoview(request, **kwargs):
     #else: 
     # POST not validated, or GET
 
+    # Allerede tilmeldt
     tilmeldte_fg = FokusGruppe.objects.filter(
         modul=modul
     ).order_by('elev__fornavn') # https://stackoverflow.com/a/2065949/888033
@@ -408,6 +409,12 @@ class FokusGruppeUdvalgListView(View):
 
 class FokusGruppeView(generic.DetailView):
     model = FokusGruppe
+    form=FokusGruppeObserveForm
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form"] = self.form
+        return context
+    
 
 
 class OpretModulFormView(View):

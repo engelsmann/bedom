@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Adding my PREPARE app:
     'prepare.apps.PrepareConfig', # Object created by Django with STARTAPP PREPARE
+    # Adding my OBSERVÉR app...
 ]
 
 MIDDLEWARE = [

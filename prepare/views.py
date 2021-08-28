@@ -1,12 +1,14 @@
 # File: prepare/views.py
 from datetime import date
 
+from django.core.exceptions import ValidationError
 from django.db.models.lookups import BuiltinLookup
 from django import forms
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, request, response
+from django.http      import HttpRequest, HttpResponse, HttpResponseRedirect, request, response
 from django.shortcuts import render
 from django.urls      import reverse
-from django.views     import generic, View
+from django.utils.translation import gettext_lazy as _ # Or pgettext_lazy ?
+from django.views                import generic, View
 from django.views.generic.base   import TemplateView
 from django.views.generic.detail import SingleObjectMixin
 from django.views.generic.edit   import FormView
@@ -406,14 +408,60 @@ class FokusGruppeUdvalgListView(View):
     def idag(self):
         return True #date.today() == self.model.modul.afholdt
 
-
-class FokusGruppeView(generic.DetailView):
+# Blev gjort opmærksom på, at HTTP 405 med DetailView skyldtes design:
+# Ændringer / POST kræver UpdateView: https://stackoverflow.com/a/39993806/888033
+class FokusGruppeView(generic.UpdateView):
     model = FokusGruppe
     form=FokusGruppeObserveForm
+    fields = ['tilstede', 'spørg', 'hjælp', 'faglig', 'stikord']
+    template_name = 'prepare/fokusgruppe_detail.html'
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["form"] = self.form
+        #context["form"] = self.form
         return context
+    
+    def clean(self):
+        """
+            Raises ValidationError, if "tilstede" is True WITHOUT all three of "spørg", "hjælp" and "faglig"
+            being set (not Null).
+            https://docs.djangoproject.com/en/3.2/ref/forms/validation/#cleaning-and-validating-fields-that-depend-on-each-other
+            https://docs.djangoproject.com/en/3.2/ref/forms/validation/#raising-validation-error
+        """
+        cleaned_data = super().clean()
+        tilstede = cleaned_data.get("tilstede")
+        spørg    = cleaned_data.get("spørg")
+        hjælp    = cleaned_data.get("hjælp")
+        faglig   = cleaned_data.get("faglig")
+        stikord  = cleaned_data.get("stikord")
+        if tilstede == True:
+            if spørg and hjælp and faglig:
+                pass # Everything is good and fine!
+            else:
+                self.add_error( ValidationError(
+                    _('Når eleven er registreret som tilstede i modulet %(tilstede)s, kræves Spørgefærdighed udfyldt %(spørg)i, relevans af ydet hjælp %(hjælp)i, niveau af faglig samtale %(faglig)i. Også lærerens stikord kan kun bedømmes "%(stikord)s" er medtaget her.'), 
+                    code='inconsistent',
+                    params = {
+                        'tilstede' : tilstede,
+                        'spørg' : spørg,
+                        'hjælp' : hjælp,
+                        'faglig' : faglig,
+                        'stikord' : stikord
+                    }
+                ))
+        else: # tilstede False or None
+            if tilstede is not None and spørg and hjælp and faglig and stikord:
+                self.add_error( ValidationError(
+                    _('Spørgefærdighed %(spørg)i, relevans af ydet hjælp %(hjælp)i, niveau af faglig samtale %(faglig)i samt lærerens stikord "%(stikord)s" kan kun bedømmes, hvis eleven er registreret som tilstede i modulet: %(tilstede)s.'), 
+                    code='inconsistent',
+                    params = {
+                        'tilstede' : tilstede,
+                        'spørg' : spørg,
+                        'hjælp' : hjælp,
+                        'faglig' : faglig,
+                        'stikord' : stikord
+                    }
+                ))
+        
     
 
 

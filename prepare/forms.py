@@ -6,7 +6,7 @@ from datetime import date, timedelta
 #from django.db.models import fields
 from django import forms
 from django.core.exceptions import ValidationError
-from django.forms import DateInput, ModelChoiceField
+from django.forms import DateInput, ModelChoiceField, widgets
 from django.forms.fields import MultipleChoiceField
 
 from django.http import request
@@ -31,6 +31,17 @@ class FokusGruppeObserveForm(forms.ModelForm):
     class Meta:
         model=FokusGruppe
         fields = ['tilstede', 'spørg', 'hjælp', 'faglig', 'stikord']
+        widgets = {
+            'spørg' : forms.RadioSelect(
+                attrs={'choices': range(1, FokusGruppe.get_max_score() +1)}
+            ),
+        #   'hjælp' : forms.RadioSelect(
+        #        attrs={'choices': range(1,FokusGruppe.hjælp.max_value)}
+        #    ), 
+        #    'faglig' : forms.RadioSelect(
+        #        attrs={'choices': range(1,FokusGruppe.faglig.max_value)}
+        #    )
+        }
 
 class FokusgruppeSelectForm(forms.Form): # Ny version 11/8 2021
       # - Indskydelse (11/8, eftermiddag): Brug ModelForm, vølg kun afholdt og forløb felter.

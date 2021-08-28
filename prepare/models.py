@@ -259,11 +259,11 @@ class FokusGruppe(models.Model):
     Den faglige er til at stimulere/måle 'Intelligenskvitient'.
     Scores kan alene registreres (not Null), hvis `tilstede`=True (observation ikke mulig af fraværende elever).
     """
-    # Må flyttes til Fokusgruppe-form:
-    # validators=[MinValueValidator(1), MaxValueValidator(4)], 
-    spørg    = IntegerField(blank=True, null=True, help_text='Score for elevens evne til at søge hjælp på fagligt spørgsmål')
-    hjælp    = IntegerField(blank=True, null=True, help_text='Score for elevens evne til at yde hjælp til faglig problemløsning')
-    faglig   = IntegerField(blank=True, null=True, help_text='Score for elevens evne til at bidrage til en faglig samtale')
+    def get_max_score():
+        return 4
+    spørg    = IntegerField(blank=True, null=True, validators=[MinValueValidator(1), MaxValueValidator(get_max_score())], help_text='Score for elevens evne til at søge hjælp på fagligt spørgsmål')
+    hjælp    = IntegerField(blank=True, null=True, validators=[MinValueValidator(1), MaxValueValidator(4)], help_text='Score for elevens evne til at yde hjælp til faglig problemløsning')
+    faglig   = IntegerField(blank=True, null=True, validators=[MinValueValidator(1), MaxValueValidator(4)], help_text='Score for elevens evne til at bidrage til en faglig samtale')
     stikord  = CharField(   blank=True, null=True, max_length=30, help_text='Lærerens observationer i "tre" ord')
     reaktion = CharField(   blank=True, null=True, max_length=30, help_text='Elevens bemærkning')
 
@@ -304,7 +304,7 @@ class FokusGruppe(models.Model):
     @property
     def klasse(self):
         return self.elev.klasse
-
+    
     #def clean(self,modul):
         """
             https://docs.djangoproject.com/en/3.2/ref/models/instances/#django.db.models.Model.clean
